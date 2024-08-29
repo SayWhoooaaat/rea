@@ -14,16 +14,20 @@ class TierListPage extends StatefulWidget {
 class TierListPageState extends State<TierListPage> {
   final List<String> tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
   List<Map<String, dynamic>> customItems = [];
+  Map<String, List<Map<String, dynamic>>> rankedItems = {};
 
   late Future<void> _loadItemsFuture;
 
   // Add this constant at the top of the class
-  static const double itemSize = 80.0;
+  static const double itemSize = 70.0;
 
   @override
   void initState() {
     super.initState();
     _loadItemsFuture = _loadCustomItems();
+    for (var tier in tiers) {
+      rankedItems[tier] = [];
+    }
   }
 
   String get _storageKey => 'customItems_${widget.title}';
@@ -31,20 +35,30 @@ class TierListPageState extends State<TierListPage> {
   Future<void> _loadCustomItems() async {
     final prefs = await SharedPreferences.getInstance();
     final String? itemsJson = prefs.getString(_storageKey);
-    print('Loading items for ${widget.title}: $itemsJson'); // Debug print
+    final String? rankedItemsJson = prefs.getString('${_storageKey}_ranked');
+
     if (itemsJson != null) {
       setState(() {
         customItems = List<Map<String, dynamic>>.from(json.decode(itemsJson));
       });
     }
-    print('Loaded items for ${widget.title}: $customItems'); // Debug print
+
+    if (rankedItemsJson != null) {
+      final Map<String, dynamic> decodedRankedItems =
+          json.decode(rankedItemsJson);
+      setState(() {
+        rankedItems = Map.fromEntries(decodedRankedItems.entries.map(
+            (e) => MapEntry(e.key, List<Map<String, dynamic>>.from(e.value))));
+      });
+    }
   }
 
   Future<void> _saveCustomItems() async {
     final prefs = await SharedPreferences.getInstance();
     final String itemsJson = json.encode(customItems);
+    final String rankedItemsJson = json.encode(rankedItems);
     await prefs.setString(_storageKey, itemsJson);
-    print('Saved items for ${widget.title}: $itemsJson'); // Debug print
+    await prefs.setString('${_storageKey}_ranked', rankedItemsJson);
   }
 
   @override
@@ -65,60 +79,11 @@ class TierListPageState extends State<TierListPage> {
                   child: ListView.builder(
                     itemCount: tiers.length,
                     itemBuilder: (context, index) {
-                      return Container(
-                        height: itemSize, // Use the constant here
-                        margin: const EdgeInsets.symmetric(vertical: 1.0),
-                        child: Row(
-                          children: [
-                            // Here is one tier (eg. S)
-                            Container(
-                              width: itemSize, // Use the constant here
-                              height: itemSize, // Use the constant here
-                              color: _getTierColor(tiers[index]),
-                              alignment: Alignment.center,
-                              child: Text(
-                                tiers[index],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 24,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                color: Colors.grey[800],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
+                      return _buildTierRow(tiers[index]);
                     },
                   ),
                 ),
-                Container(
-                  height: itemSize + 16, // itemSize plus some padding
-                  color: Colors.grey[900],
-                  child: customItems.isEmpty
-                      ? const Center(
-                          child: Text(
-                              'Import images or add text to start ranking'))
-                      : ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: customItems.length,
-                          itemBuilder: (context, index) {
-                            return Draggable<Map<String, dynamic>>(
-                              data: customItems[index],
-                              feedback: _buildCustomItem(customItems[index]),
-                              childWhenDragging: Opacity(
-                                opacity: 0.5,
-                                child: _buildCustomItem(customItems[index]),
-                              ),
-                              child: _buildCustomItem(customItems[index]),
-                            );
-                          },
-                        ),
-                ),
+                _buildUnrankedItemsRow(),
               ],
             ),
             floatingActionButton: SpeedDial(
@@ -158,6 +123,123 @@ class TierListPageState extends State<TierListPage> {
           );
         }
       },
+    );
+  }
+
+  Widget _buildTierRow(String tier) {
+    return Container(
+      height: itemSize,
+      margin: const EdgeInsets.symmetric(vertical: 1.0),
+      child: Row(
+        children: [
+          Container(
+            width: itemSize,
+            height: itemSize,
+            color: _getTierColor(tier),
+            alignment: Alignment.center,
+            child: Text(
+              tier,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          Expanded(
+            child: DragTarget<Map<String, dynamic>>(
+              builder: (context, candidateData, rejectedData) {
+                return Container(
+                  color: Colors.grey[800],
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: rankedItems[tier]!.length,
+                    itemBuilder: (context, index) {
+                      return _buildDraggableItem(
+                          rankedItems[tier]![index], tier, index);
+                    },
+                  ),
+                );
+              },
+              onAcceptWithDetails: (details) {
+                final data = details.data;
+                setState(() {
+                  if (customItems.remove(data)) {
+                    rankedItems[tier]!.add(data);
+                  } else {
+                    for (var t in tiers) {
+                      if (rankedItems[t]!.remove(data)) {
+                        rankedItems[tier]!.add(data);
+                        break;
+                      }
+                    }
+                  }
+                  _saveCustomItems();
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnrankedItemsRow() {
+    return Container(
+      height: itemSize + 16,
+      color: Colors.grey[900],
+      child: customItems.isEmpty
+          ? const Center(
+              child: Text('Import images or add text to start ranking'))
+          : ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: customItems.length,
+              itemBuilder: (context, index) {
+                return _buildDraggableItem(customItems[index], null, index);
+              },
+            ),
+    );
+  }
+
+  Widget _buildDraggableItem(
+      Map<String, dynamic> item, String? tier, int index) {
+    return Draggable<Map<String, dynamic>>(
+      data: item,
+      feedback: _buildCustomItem(item),
+      childWhenDragging: Opacity(
+        opacity: 0.5,
+        child: _buildCustomItem(item),
+      ),
+      child: DragTarget<Map<String, dynamic>>(
+        builder: (context, candidateData, rejectedData) {
+          return _buildCustomItem(item);
+        },
+        onAcceptWithDetails: (details) {
+          final data = details.data;
+          setState(() {
+            if (tier != null) {
+              // Remove the item from its original position
+              for (var t in tiers) {
+                rankedItems[t]!.remove(data);
+              }
+              customItems.remove(data);
+
+              // Insert the item at the new position
+              rankedItems[tier]!.insert(index, data);
+            } else {
+              // Remove the item from its original position
+              for (var t in tiers) {
+                rankedItems[t]!.remove(data);
+              }
+              customItems.remove(data);
+
+              // Insert the item at the new position in customItems
+              customItems.insert(index, data);
+            }
+            _saveCustomItems();
+          });
+        },
+      ),
     );
   }
 

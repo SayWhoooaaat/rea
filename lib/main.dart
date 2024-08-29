@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tier_list_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,8 +34,29 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final List<String> _items = [];
+  List<String> _items = [];
   final Map<String, TierListPage> _tierListPages = {};
+  late SharedPreferences _prefs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    _prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _items = _prefs.getStringList('items') ?? [];
+      for (var item in _items) {
+        _tierListPages[item] = TierListPage(title: item);
+      }
+    });
+  }
+
+  Future<void> _saveItems() async {
+    await _prefs.setStringList('items', _items);
+  }
 
   void _addNewItem() async {
     final String? newItemName = await showDialog<String>(
@@ -72,6 +94,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _items.add(newItemName);
         _tierListPages[newItemName] = TierListPage(title: newItemName);
       });
+      await _saveItems();
     }
   }
 
