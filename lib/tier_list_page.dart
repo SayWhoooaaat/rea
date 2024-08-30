@@ -4,8 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class TierListPage extends StatefulWidget {
-  final String title;
-  const TierListPage({super.key, required this.title});
+  final String name;
+  final int index;
+  const TierListPage({super.key, required this.name, required this.index});
 
   @override
   State<TierListPage> createState() => TierListPageState();
@@ -32,7 +33,7 @@ class TierListPageState extends State<TierListPage> {
     }
   }
 
-  String get _storageKey => 'customItems_${widget.title}';
+  String get _storageKey => 'customItems_${widget.index}';
 
   Future<void> _loadCustomItems() async {
     final prefs = await SharedPreferences.getInstance();
@@ -73,7 +74,7 @@ class TierListPageState extends State<TierListPage> {
         } else {
           return Scaffold(
             appBar: AppBar(
-              title: Text(widget.title),
+              title: Text(widget.name),
             ),
             body: Stack(
               children: [
