@@ -187,13 +187,44 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _deleteTierList(int index) {
-    setState(() {
+  void _deleteTierList(int index) async {
+    // Show confirmation dialog
+    bool confirmDelete = await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Confirm Deletion'),
+              content: Text(
+                  'Are you sure you want to delete "${_tierLists[index]['name']}"? This action cannot be undone.'),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+                TextButton(
+                  child: const Text('Delete'),
+                  onPressed: () => Navigator.of(context).pop(true),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (confirmDelete) {
       int deletedIndex = _tierLists[index]['index'];
-      _tierLists.removeAt(index);
-      _tierListPages.remove(deletedIndex);
-    });
-    _saveTierLists();
+
+      // Clear SharedPreferences data for the deleted tier list
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('customItems_$deletedIndex');
+      await prefs.remove('customItems_${deletedIndex}_ranked');
+
+      setState(() {
+        _tierLists.removeAt(index);
+        _tierListPages.remove(deletedIndex);
+      });
+      await _saveTierLists();
+    }
   }
 
   @override
@@ -201,7 +232,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: Center(child: Text(widget.title)),
       ),
       body: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
