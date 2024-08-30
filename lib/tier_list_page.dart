@@ -198,18 +198,34 @@ class TierListPageState extends State<TierListPage> {
   }
 
   Widget _buildUnrankedItemsRow() {
-    return Container(
-      height: itemSize + 16,
-      color: Colors.grey[900],
-      child: customItems.isEmpty
-          ? const Center(child: Text('Import images to start ranking'))
-          : ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: customItems.length,
-              itemBuilder: (context, index) {
-                return _buildDraggableItem(customItems[index], null, index);
-              },
-            ),
+    return DragTarget<Map<String, dynamic>>(
+      builder: (context, candidateData, rejectedData) {
+        return Container(
+          height: itemSize + 16,
+          color: candidateData.isNotEmpty ? Colors.grey[700] : Colors.grey[900],
+          child: customItems.isEmpty
+              ? const Center(child: Text('Import images to start ranking'))
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: customItems.length,
+                  itemBuilder: (context, index) {
+                    return _buildDraggableItem(customItems[index], null, index);
+                  },
+                ),
+        );
+      },
+      onAcceptWithDetails: (details) {
+        final data = details.data;
+        setState(() {
+          for (var tier in tiers) {
+            rankedItems[tier]!.remove(data);
+          }
+          if (!customItems.contains(data)) {
+            customItems.add(data);
+          }
+          _saveCustomItems();
+        });
+      },
     );
   }
 
