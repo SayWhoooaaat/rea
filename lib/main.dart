@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'tier_list_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MyApp());
@@ -109,6 +110,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _showOptionsDialog(int index) {
+    HapticFeedback.mediumImpact();
     showDialog(
       context: context,
       builder: (BuildContext context) {
