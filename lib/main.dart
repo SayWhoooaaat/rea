@@ -74,6 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
             onChanged: (value) {
               itemName = value;
             },
+            textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(),
           ),
           actions: <Widget>[
@@ -150,6 +151,7 @@ class _MyHomePageState extends State<MyHomePage> {
             onChanged: (value) {
               itemName = value;
             },
+            textCapitalization: TextCapitalization.sentences,
             controller: TextEditingController(text: itemName),
             decoration: const InputDecoration(),
           ),

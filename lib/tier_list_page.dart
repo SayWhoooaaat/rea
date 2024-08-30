@@ -226,7 +226,6 @@ class TierListPageState extends State<TierListPage> {
       Map<String, dynamic> item, String? tier, int index) {
     return GestureDetector(
       onDoubleTap: () async {
-        //await HapticFeedback.vibrate();
         if (mounted) {
           _showItemOptions(context, item, tier, index);
         }
@@ -358,6 +357,7 @@ class TierListPageState extends State<TierListPage> {
             onChanged: (value) {
               inputText = value;
             },
+            textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(),
           ),
           actions: [
@@ -391,7 +391,6 @@ class TierListPageState extends State<TierListPage> {
 
   void _showItemOptions(BuildContext context, Map<String, dynamic> item,
       String? tier, int index) {
-    // This method will now be called after a 1-second long press
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -435,6 +434,7 @@ class TierListPageState extends State<TierListPage> {
             onChanged: (value) {
               newName = value;
             },
+            textCapitalization: TextCapitalization.sentences,
             controller: TextEditingController(text: item['content']),
           ),
           actions: [
