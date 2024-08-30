@@ -7,7 +7,8 @@ import 'package:flutter/services.dart';
 class TierListPage extends StatefulWidget {
   final String name;
   final int index;
-  const TierListPage({super.key, required this.name, required this.index});
+  const TierListPage({Key? key, required this.name, required this.index})
+      : super(key: key);
 
   @override
   State<TierListPage> createState() => TierListPageState();
@@ -39,20 +40,22 @@ class TierListPageState extends State<TierListPage> {
     final String? itemsJson = prefs.getString(_storageKey);
     final String? rankedItemsJson = prefs.getString('${_storageKey}_ranked');
 
-    if (itemsJson != null) {
-      setState(() {
+    setState(() {
+      if (itemsJson != null) {
         customItems = List<Map<String, dynamic>>.from(json.decode(itemsJson));
-      });
-    }
+      } else {
+        customItems = [];
+      }
 
-    if (rankedItemsJson != null) {
-      final Map<String, dynamic> decodedRankedItems =
-          json.decode(rankedItemsJson);
-      setState(() {
+      if (rankedItemsJson != null) {
+        final Map<String, dynamic> decodedRankedItems =
+            json.decode(rankedItemsJson);
         rankedItems = Map.fromEntries(decodedRankedItems.entries.map(
             (e) => MapEntry(e.key, List<Map<String, dynamic>>.from(e.value))));
-      });
-    }
+      } else {
+        rankedItems = {for (var tier in tiers) tier: []};
+      }
+    });
   }
 
   Future<void> _saveCustomItems() async {
@@ -73,6 +76,7 @@ class TierListPageState extends State<TierListPage> {
         } else {
           return Scaffold(
             appBar: AppBar(
+              centerTitle: true,
               title: Text(widget.name),
             ),
             body: Stack(
@@ -196,15 +200,13 @@ class TierListPageState extends State<TierListPage> {
         return Container(
           height: itemSize + 16,
           color: candidateData.isNotEmpty ? Colors.grey[700] : Colors.grey[900],
-          child: customItems.isEmpty
-              ? const Center(child: Text('Import images to start ranking'))
-              : ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: customItems.length,
-                  itemBuilder: (context, index) {
-                    return _buildDraggableItem(customItems[index], null, index);
-                  },
-                ),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: customItems.length,
+            itemBuilder: (context, index) {
+              return _buildDraggableItem(customItems[index], null, index);
+            },
+          ),
         );
       },
       onAcceptWithDetails: (details) {
@@ -474,5 +476,15 @@ class TierListPageState extends State<TierListPage> {
       }
       _saveCustomItems();
     });
+  }
+
+  Future<void> deleteAllContent() async {
+    setState(() {
+      customItems.clear();
+      for (var tier in tiers) {
+        rankedItems[tier]!.clear();
+      }
+    });
+    await _saveCustomItems();
   }
 }
