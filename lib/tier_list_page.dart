@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:flutter/services.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -21,8 +22,6 @@ class TierListPageState extends State<TierListPage> {
 
   // Add this constant at the top of the class
   static const double itemSize = 70.0;
-
-  bool _isDragging = false;
 
   @override
   void initState() {
@@ -91,13 +90,6 @@ class TierListPageState extends State<TierListPage> {
                     _buildUnrankedItemsRow(),
                   ],
                 ),
-                if (_isDragging)
-                  Positioned(
-                    bottom: 16,
-                    left: 0,
-                    right: 0,
-                    child: Center(child: _buildTrashTarget()),
-                  ),
               ],
             ),
             floatingActionButton: SpeedDial(
@@ -233,11 +225,15 @@ class TierListPageState extends State<TierListPage> {
   Widget _buildDraggableItem(
       Map<String, dynamic> item, String? tier, int index) {
     return GestureDetector(
-      onLongPress: () {
-        _showItemOptions(context, item, tier, index);
+      onLongPress: () async {
+        await HapticFeedback.vibrate();
+        if (mounted) {
+          _showItemOptions(context, item, tier, index);
+        }
       },
-      child: Draggable<Map<String, dynamic>>(
+      child: LongPressDraggable<Map<String, dynamic>>(
         data: item,
+        delay: const Duration(milliseconds: 500), // Adjust this value as needed
         feedback: Material(
           elevation: 4.0,
           child: SizedBox(
@@ -255,43 +251,36 @@ class TierListPageState extends State<TierListPage> {
             return _buildCustomItem(item);
           },
           onAcceptWithDetails: (details) {
-            final data = details.data;
-            setState(() {
-              if (tier != null) {
-                // Remove the item from its original position
-                for (var t in tiers) {
-                  rankedItems[t]!.remove(data);
-                }
-                customItems.remove(data);
-
-                // Insert the item at the new position
-                rankedItems[tier]!.insert(index, data);
-              } else {
-                // Remove the item from its original position
-                for (var t in tiers) {
-                  rankedItems[t]!.remove(data);
-                }
-                customItems.remove(data);
-
-                // Insert the item at the new position in customItems
-                customItems.insert(index, data);
-              }
-              _saveCustomItems();
-            });
+            _handleItemAccept(details.data, tier, index);
           },
         ),
-        onDragStarted: () {
-          setState(() {
-            _isDragging = true;
-          });
-        },
-        onDragEnd: (details) {
-          setState(() {
-            _isDragging = false;
-          });
-        },
       ),
     );
+  }
+
+  void _handleItemAccept(Map<String, dynamic> data, String? tier, int index) {
+    setState(() {
+      if (tier != null) {
+        // Remove the item from its original position
+        for (var t in tiers) {
+          rankedItems[t]!.remove(data);
+        }
+        customItems.remove(data);
+
+        // Insert the item at the new position
+        rankedItems[tier]!.insert(index, data);
+      } else {
+        // Remove the item from its original position
+        for (var t in tiers) {
+          rankedItems[t]!.remove(data);
+        }
+        customItems.remove(data);
+
+        // Insert the item at the new position in customItems
+        customItems.insert(index, data);
+      }
+      _saveCustomItems();
+    });
   }
 
   Widget _buildTrashTarget() {
@@ -445,6 +434,7 @@ class TierListPageState extends State<TierListPage> {
 
   void _showItemOptions(BuildContext context, Map<String, dynamic> item,
       String? tier, int index) {
+    // This method will now be called after a 1-second long press
     showDialog(
       context: context,
       builder: (BuildContext context) {
