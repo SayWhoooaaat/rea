@@ -225,15 +225,15 @@ class TierListPageState extends State<TierListPage> {
   Widget _buildDraggableItem(
       Map<String, dynamic> item, String? tier, int index) {
     return GestureDetector(
-      onLongPress: () async {
-        await HapticFeedback.vibrate();
+      onDoubleTap: () async {
+        //await HapticFeedback.vibrate();
         if (mounted) {
           _showItemOptions(context, item, tier, index);
         }
       },
       child: LongPressDraggable<Map<String, dynamic>>(
         data: item,
-        delay: const Duration(milliseconds: 500), // Adjust this value as needed
+        delay: const Duration(milliseconds: 300), // Adjust this value as needed
         feedback: Material(
           elevation: 4.0,
           child: SizedBox(
@@ -281,31 +281,6 @@ class TierListPageState extends State<TierListPage> {
       }
       _saveCustomItems();
     });
-  }
-
-  Widget _buildTrashTarget() {
-    return DragTarget<Map<String, dynamic>>(
-      builder: (context, candidateData, rejectedData) {
-        return Container(
-          width: 50,
-          height: 50,
-          decoration: const BoxDecoration(
-            color: Color.fromARGB(75, 156, 46, 39),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.delete, color: Colors.white),
-        );
-      },
-      onAcceptWithDetails: (details) {
-        setState(() {
-          customItems.remove(details.data);
-          for (var tier in tiers) {
-            rankedItems[tier]!.remove(details.data);
-          }
-          _saveCustomItems();
-        });
-      },
-    );
   }
 
   Widget _buildImageThumbnail(String imagePath) {
@@ -411,24 +386,6 @@ class TierListPageState extends State<TierListPage> {
     setState(() {
       customItems.add({'type': 'text', 'content': text});
       _saveCustomItems();
-    });
-  }
-
-  void _addImportedImage(String imagePath) {
-    setState(() {
-      customItems.add({'type': 'image', 'content': imagePath});
-      _saveCustomItems(); // Add this line
-    });
-  }
-
-  void _updateItemPosition(int oldIndex, int newIndex) {
-    setState(() {
-      if (oldIndex < newIndex) {
-        newIndex -= 1;
-      }
-      final item = customItems.removeAt(oldIndex);
-      customItems.insert(newIndex, item);
-      _saveCustomItems(); // Add this line
     });
   }
 
