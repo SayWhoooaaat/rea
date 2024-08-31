@@ -124,6 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        bool isHidden = _tierLists[index]['hidden'] ?? false;
         return AlertDialog(
           title: Text('Options for ${_tierLists[index]['name']}'),
           content: Column(
@@ -135,6 +136,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 onTap: () {
                   Navigator.pop(context);
                   _renameTierList(index);
+                },
+              ),
+              ListTile(
+                leading:
+                    Icon(isHidden ? Icons.visibility : Icons.visibility_off),
+                title: Text(isHidden ? 'Unhide' : 'Hide'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _toggleHiddenStatus(index);
                 },
               ),
               ListTile(
@@ -150,6 +160,71 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       },
     );
+  }
+
+  void _toggleHiddenStatus(int index) async {
+    bool currentlyHidden = _tierLists[index]['hidden'] ?? false;
+    String? newPassword;
+
+    if (!currentlyHidden) {
+      // Going from unhidden to hidden, ask for a new password
+      newPassword = await showDialog<String>(
+        context: context,
+        builder: (BuildContext context) {
+          String? password;
+          return AlertDialog(
+            title: const Text('Set Password'),
+            content: TextField(
+              onChanged: (value) {
+                password = value;
+              },
+              obscureText: true,
+              decoration: const InputDecoration(hintText: 'Enter password'),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: const Text('Set'),
+                onPressed: () {
+                  Navigator.of(context).pop(password);
+                },
+              ),
+            ],
+          );
+        },
+      );
+
+      if (newPassword == null || newPassword.isEmpty) {
+        // If no password is set, don't hide the list
+        return;
+      }
+    }
+
+    setState(() {
+      _tierLists[index]['hidden'] = !currentlyHidden;
+      int tierListIndex = _tierLists[index]['index'];
+
+      if (currentlyHidden) {
+        // Going from hidden to unhidden, set password to current name
+        _tierLists[index]['password'] = _tierLists[index]['name'];
+      } else {
+        // Going from unhidden to hidden, set the new password
+        _tierLists[index]['password'] = newPassword;
+      }
+
+      _tierListPages[tierListIndex] = TierListPage(
+        name: _tierLists[index]['name'],
+        index: tierListIndex,
+        hidden: _tierLists[index]['hidden'],
+        password: _tierLists[index]['password'],
+      );
+    });
+    await _saveTierLists();
   }
 
   void _renameTierList(int index) async {
