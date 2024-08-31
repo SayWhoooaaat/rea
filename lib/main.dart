@@ -330,6 +330,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    bool showSearchBar = _tierLists.length >= 9 ||
+        _tierLists.any((list) => list['hidden'] == true);
+
+    // Clear search query if search bar is hidden
+    if (!showSearchBar && _searchQuery.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _searchQuery = '';
+        });
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -337,13 +349,13 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Column(
         children: [
-          if (_tierLists.length >= 2)
+          if (showSearchBar)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: TextField(
                 decoration: InputDecoration(
                   hintText: 'Search tier lists...',
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: const Icon(Icons.search),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
