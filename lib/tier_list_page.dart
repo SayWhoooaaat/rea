@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:flutter/services.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
   final int index;
-  const TierListPage({Key? key, required this.name, required this.index})
-      : super(key: key);
+  final bool hidden;
+  final String password;
+  const TierListPage(
+      {super.key,
+      required this.name,
+      required this.index,
+      this.hidden = false,
+      this.password = ''});
 
   @override
   State<TierListPage> createState() => TierListPageState();
