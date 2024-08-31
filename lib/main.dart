@@ -315,15 +315,19 @@ class _MyHomePageState extends State<MyHomePage> {
   // This is the search logic
   List<Map<String, dynamic>> get _filteredTierLists {
     if (_searchQuery.isEmpty) {
-      return _tierLists.where((tierList) => !tierList['hidden']).toList();
+      return _tierLists
+          .where((tierList) => tierList['hidden'] != true)
+          .toList();
     }
     return _tierLists.where((tierList) {
-      if (!tierList['hidden']) {
+      bool isHidden = tierList['hidden'] ?? false;
+      if (!isHidden) {
         return tierList['name']
             .toLowerCase()
             .contains(_searchQuery.toLowerCase());
       } else {
-        return tierList['password'].toLowerCase() == _searchQuery.toLowerCase();
+        return (tierList['password'] ?? '').toLowerCase() ==
+            _searchQuery.toLowerCase();
       }
     }).toList();
   }
