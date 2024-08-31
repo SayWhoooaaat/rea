@@ -248,7 +248,7 @@ class _MyHomePageState extends State<MyHomePage> {
             .toLowerCase()
             .contains(_searchQuery.toLowerCase());
       } else {
-        return tierList['password'] == _searchQuery;
+        return tierList['password'].toLowerCase() == _searchQuery.toLowerCase();
       }
     }).toList();
   }
