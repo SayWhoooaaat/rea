@@ -55,6 +55,8 @@ class _MyHomePageState extends State<MyHomePage> {
         _tierListPages[tierList['index']] = TierListPage(
           name: tierList['name'],
           index: tierList['index'],
+          hidden: tierList['hidden'] ?? false,
+          password: tierList['password'] ?? tierList['name'],
         );
       }
     });
@@ -99,10 +101,17 @@ class _MyHomePageState extends State<MyHomePage> {
     if (newTierListName != null && newTierListName.isNotEmpty) {
       setState(() {
         int newIndex = _tierLists.isEmpty ? 0 : _tierLists.last['index'] + 1;
-        _tierLists.add({'name': newTierListName, 'index': newIndex});
+        _tierLists.add({
+          'name': newTierListName,
+          'index': newIndex,
+          'hidden': false,
+          'password': newTierListName,
+        });
         _tierListPages[newIndex] = TierListPage(
           name: newTierListName,
           index: newIndex,
+          hidden: false,
+          password: newTierListName,
         );
       });
       await _saveTierLists();
