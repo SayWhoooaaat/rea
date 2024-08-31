@@ -40,11 +40,22 @@ class _MyHomePageState extends State<MyHomePage> {
   final Map<int, TierListPage> _tierListPages = {};
   late SharedPreferences _prefs;
   String _searchQuery = '';
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _loadTierLists();
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _unfocusSearchBar() {
+    _searchFocusNode.unfocus();
   }
 
   Future<void> _loadTierLists() async {
@@ -120,6 +131,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _showOptionsDialog(int index) {
+    _unfocusSearchBar(); // Add this line
     HapticFeedback.mediumImpact();
     showDialog(
       context: context,
@@ -351,76 +363,85 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Center(child: Text(widget.title)),
       ),
-      body: Column(
-        children: [
-          if (showSearchBar)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search tier lists...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
-              ),
-            ),
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              padding: const EdgeInsets.all(10),
-              itemBuilder: (context, index) {
-                final tierList = _filteredTierLists[index];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            _tierListPages[tierList['index']]!,
-                      ),
-                    );
-                  },
-                  onLongPress: () => _showOptionsDialog(_tierLists.indexWhere(
-                      (item) => item['index'] == tierList['index'])),
-                  child: Container(
-                    color: Colors.grey[800],
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.view_list,
-                          size: 50,
-                          color: Colors.brown,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          tierList['name'],
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ],
+      body: GestureDetector(
+        onTap: _unfocusSearchBar,
+        child: Column(
+          children: [
+            if (showSearchBar)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  focusNode: _searchFocusNode,
+                  decoration: InputDecoration(
+                    hintText: 'Search tier lists...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                );
-              },
-              itemCount: _filteredTierLists.length,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  autofocus: false,
+                ),
+              ),
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                padding: const EdgeInsets.all(10),
+                itemBuilder: (context, index) {
+                  final tierList = _filteredTierLists[index];
+                  return GestureDetector(
+                    onTap: () {
+                      _unfocusSearchBar();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              _tierListPages[tierList['index']]!,
+                        ),
+                      );
+                    },
+                    onLongPress: () => _showOptionsDialog(_tierLists.indexWhere(
+                        (item) => item['index'] == tierList['index'])),
+                    child: Container(
+                      color: Colors.grey[800],
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.view_list,
+                            size: 50,
+                            color: Colors.brown,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            tierList['name'],
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                itemCount: _filteredTierLists.length,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addNewTierList,
+        onPressed: () {
+          _unfocusSearchBar();
+          _addNewTierList();
+        },
         tooltip: 'Add new Tier List',
         child: const Icon(Icons.add),
       ),
