@@ -16,10 +16,10 @@ class TierListPage extends StatefulWidget {
       this.password = ''});
 
   @override
-  _TierListPageState createState() => _TierListPageState();
+  State<TierListPage> createState() => TierListPageState();
 }
 
-class _TierListPageState extends State<TierListPage> {
+class TierListPageState extends State<TierListPage> {
   final List<String> tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
   List<Map<String, dynamic>> customItems = [];
   Map<String, List<Map<String, dynamic>>> rankedItems = {};
@@ -293,13 +293,13 @@ class _TierListPageState extends State<TierListPage> {
     return Container(
       width: itemSize,
       height: itemSize,
-      margin: const EdgeInsets.all(4),
+      margin: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         image: DecorationImage(
           image: AssetImage(imagePath),
           fit: BoxFit.contain, // Change this from cover to contain
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }
@@ -308,10 +308,10 @@ class _TierListPageState extends State<TierListPage> {
     return Container(
       width: itemSize, // Use the constant here
       height: itemSize, // Use the constant here
-      margin: const EdgeInsets.all(4),
+      margin: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: Colors.black,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Center(
         child: Text(
