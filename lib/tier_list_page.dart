@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'image_picker_handler.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -16,10 +17,10 @@ class TierListPage extends StatefulWidget {
       this.password = ''});
 
   @override
-  _TierListPageState createState() => _TierListPageState();
+  State<TierListPage> createState() => TierListPageState();
 }
 
-class _TierListPageState extends State<TierListPage> {
+class TierListPageState extends State<TierListPage> {
   final List<String> tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
   List<Map<String, dynamic>> customItems = [];
   Map<String, List<Map<String, dynamic>>> rankedItems = {};
@@ -28,6 +29,8 @@ class _TierListPageState extends State<TierListPage> {
 
   // Add this constant at the top of the class
   static const double itemSize = 70.0;
+
+  final ImagePickerHandler _imagePickerHandler = ImagePickerHandler();
 
   @override
   void initState() {
@@ -108,8 +111,15 @@ class _TierListPageState extends State<TierListPage> {
                 SpeedDialChild(
                   child: const Icon(Icons.photo_library),
                   label: 'Pick from device',
-                  onTap: () {
-                    // Implement pick from device logic
+                  onTap: () async {
+                    final imageData =
+                        await _imagePickerHandler.pickAndEditImage(context);
+                    if (imageData != null) {
+                      setState(() {
+                        customItems.add(imageData);
+                        _saveCustomItems();
+                      });
+                    }
                   },
                 ),
                 SpeedDialChild(
@@ -348,9 +358,30 @@ class _TierListPageState extends State<TierListPage> {
   }
 
   Widget _buildCustomItem(Map<String, dynamic> item) {
-    return item['type'] == 'image'
-        ? _buildImageThumbnail(item['content'])
-        : _buildTextBox(item['content']);
+    if (item['type'] == 'image') {
+      return Stack(
+        children: [
+          _buildImageThumbnail(item['content']),
+          if (item['text'] != null)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(
+                  item['text'],
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+              ),
+            ),
+        ],
+      );
+    } else {
+      return _buildTextBox(item['content']);
+    }
   }
 
   void _showTextInputDialog(BuildContext context) {
