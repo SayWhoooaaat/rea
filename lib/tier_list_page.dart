@@ -16,10 +16,10 @@ class TierListPage extends StatefulWidget {
       this.password = ''});
 
   @override
-  State<TierListPage> createState() => TierListPageState();
+  _TierListPageState createState() => _TierListPageState();
 }
 
-class TierListPageState extends State<TierListPage> {
+class _TierListPageState extends State<TierListPage> {
   final List<String> tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
   List<Map<String, dynamic>> customItems = [];
   Map<String, List<Map<String, dynamic>>> rankedItems = {};
