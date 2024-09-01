@@ -184,29 +184,60 @@ class _MyHomePageState extends State<MyHomePage> {
         context: context,
         builder: (BuildContext context) {
           String? password;
-          return AlertDialog(
-            title: const Text('Set Password'),
-            content: TextField(
-              onChanged: (value) {
-                password = value;
-              },
-              obscureText: true,
-              decoration: const InputDecoration(hintText: 'Enter password'),
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                child: const Text('Set'),
-                onPressed: () {
-                  Navigator.of(context).pop(password);
-                },
-              ),
-            ],
+          bool obscureText = true;
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('Hide List'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'To hide a list, give it a password. The list will only be visible '
+                      'if you type the entire password in the search bar. ',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      onChanged: (value) {
+                        password = value;
+                      },
+                      obscureText: obscureText,
+                      decoration: InputDecoration(
+                        hintText: 'Enter password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureText
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              obscureText = !obscureText;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  TextButton(
+                    child: const Text('Set'),
+                    onPressed: () {
+                      Navigator.of(context).pop(password);
+                    },
+                  ),
+                ],
+              );
+            },
           );
         },
       );
@@ -364,7 +395,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Center(child: Text(widget.title)),
       ),
       body: GestureDetector(
-        onTap: _unfocusSearchBar,
+        onTap: () => FocusScope.of(context).unfocus(),
         child: Column(
           children: [
             if (showSearchBar)
@@ -405,6 +436,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         MaterialPageRoute(
                           builder: (context) =>
                               _tierListPages[tierList['index']]!,
+                          maintainState: false,
                         ),
                       );
                     },
