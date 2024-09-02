@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'models/rank_item.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -21,8 +22,7 @@ class TierListPage extends StatefulWidget {
 
 class TierListPageState extends State<TierListPage> {
   final List<String> tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
-  List<Map<String, dynamic>> customItems = [];
-  Map<String, List<Map<String, dynamic>>> rankedItems = {};
+  List<RankItem> items = [];
 
   late Future<void> _loadItemsFuture;
 
@@ -33,9 +33,6 @@ class TierListPageState extends State<TierListPage> {
   void initState() {
     super.initState();
     _loadItemsFuture = _loadCustomItems();
-    for (var tier in tiers) {
-      rankedItems[tier] = [];
-    }
   }
 
   String get _storageKey => 'customItems_${widget.index}';
@@ -43,32 +40,22 @@ class TierListPageState extends State<TierListPage> {
   Future<void> _loadCustomItems() async {
     final prefs = await SharedPreferences.getInstance();
     final String? itemsJson = prefs.getString(_storageKey);
-    final String? rankedItemsJson = prefs.getString('${_storageKey}_ranked');
 
     setState(() {
       if (itemsJson != null) {
-        customItems = List<Map<String, dynamic>>.from(json.decode(itemsJson));
+        final List<dynamic> decodedItems = json.decode(itemsJson);
+        items = decodedItems.map((item) => RankItem.fromJson(item)).toList();
       } else {
-        customItems = [];
-      }
-
-      if (rankedItemsJson != null) {
-        final Map<String, dynamic> decodedRankedItems =
-            json.decode(rankedItemsJson);
-        rankedItems = Map.fromEntries(decodedRankedItems.entries.map(
-            (e) => MapEntry(e.key, List<Map<String, dynamic>>.from(e.value))));
-      } else {
-        rankedItems = {for (var tier in tiers) tier: []};
+        items = [];
       }
     });
   }
 
   Future<void> _saveCustomItems() async {
     final prefs = await SharedPreferences.getInstance();
-    final String itemsJson = json.encode(customItems);
-    final String rankedItemsJson = json.encode(rankedItems);
+    final String itemsJson =
+        json.encode(items.map((item) => item.toJson()).toList());
     await prefs.setString(_storageKey, itemsJson);
-    await prefs.setString('${_storageKey}_ranked', rankedItemsJson);
   }
 
   @override
@@ -162,33 +149,25 @@ class TierListPageState extends State<TierListPage> {
             ),
           ),
           Expanded(
-            child: DragTarget<Map<String, dynamic>>(
+            child: DragTarget<RankItem>(
               builder: (context, candidateData, rejectedData) {
                 return Container(
                   color: Colors.grey[800],
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: rankedItems[tier]!.length,
+                    itemCount: items.where((item) => item.tier == tier).length,
                     itemBuilder: (context, index) {
-                      return _buildDraggableItem(
-                          rankedItems[tier]![index], tier, index);
+                      return _buildDraggableItem(items
+                          .where((item) => item.tier == tier)
+                          .toList()[index]);
                     },
                   ),
                 );
               },
               onAcceptWithDetails: (details) {
-                final data = details.data;
+                final item = details.data;
                 setState(() {
-                  if (customItems.remove(data)) {
-                    rankedItems[tier]!.add(data);
-                  } else {
-                    for (var t in tiers) {
-                      if (rankedItems[t]!.remove(data)) {
-                        rankedItems[tier]!.add(data);
-                        break;
-                      }
-                    }
-                  }
+                  item.tier = tier;
                   _saveCustomItems();
                 });
               },
@@ -200,128 +179,54 @@ class TierListPageState extends State<TierListPage> {
   }
 
   Widget _buildUnrankedItemsRow() {
-    return DragTarget<Map<String, dynamic>>(
+    return DragTarget<RankItem>(
       builder: (context, candidateData, rejectedData) {
         return Container(
           height: itemSize + 16,
           color: candidateData.isNotEmpty ? Colors.grey[700] : Colors.grey[900],
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: customItems.length,
+            itemCount: items.where((item) => item.tier == null).length,
             itemBuilder: (context, index) {
-              return _buildDraggableItem(customItems[index], null, index);
+              return _buildDraggableItem(
+                  items.where((item) => item.tier == null).toList()[index]);
             },
           ),
         );
       },
       onAcceptWithDetails: (details) {
-        final data = details.data;
+        final item = details.data;
         setState(() {
-          for (var tier in tiers) {
-            rankedItems[tier]!.remove(data);
-          }
-          if (!customItems.contains(data)) {
-            customItems.add(data);
-          }
+          item.tier = null;
           _saveCustomItems();
         });
       },
     );
   }
 
-  Widget _buildDraggableItem(
-      Map<String, dynamic> item, String? tier, int index) {
+  Widget _buildDraggableItem(RankItem item) {
     return GestureDetector(
-      onDoubleTap: () async {
+      onDoubleTap: () {
         if (mounted) {
-          _showItemOptions(context, item, tier, index);
+          _showItemOptions(context, item);
         }
       },
-      child: LongPressDraggable<Map<String, dynamic>>(
+      child: LongPressDraggable<RankItem>(
         data: item,
-        delay: const Duration(milliseconds: 300), // Adjust this value as needed
+        delay: const Duration(milliseconds: 300),
         feedback: Material(
           elevation: 4.0,
           child: SizedBox(
             width: itemSize,
             height: itemSize,
-            child: _buildCustomItem(item),
+            child: item.buildWidget(itemSize),
           ),
         ),
         childWhenDragging: Opacity(
           opacity: 0.5,
-          child: _buildCustomItem(item),
+          child: item.buildWidget(itemSize),
         ),
-        child: DragTarget<Map<String, dynamic>>(
-          builder: (context, candidateData, rejectedData) {
-            return _buildCustomItem(item);
-          },
-          onAcceptWithDetails: (details) {
-            _handleItemAccept(details.data, tier, index);
-          },
-        ),
-      ),
-    );
-  }
-
-  void _handleItemAccept(Map<String, dynamic> data, String? tier, int index) {
-    setState(() {
-      if (tier != null) {
-        // Remove the item from its original position
-        for (var t in tiers) {
-          rankedItems[t]!.remove(data);
-        }
-        customItems.remove(data);
-
-        // Insert the item at the new position
-        rankedItems[tier]!.insert(index, data);
-      } else {
-        // Remove the item from its original position
-        for (var t in tiers) {
-          rankedItems[t]!.remove(data);
-        }
-        customItems.remove(data);
-
-        // Insert the item at the new position in customItems
-        customItems.insert(index, data);
-      }
-      _saveCustomItems();
-    });
-  }
-
-  Widget _buildImageThumbnail(String imagePath) {
-    return Container(
-      width: itemSize,
-      height: itemSize,
-      margin: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage(imagePath),
-          fit: BoxFit.contain, // Change this from cover to contain
-        ),
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
-
-  Widget _buildTextBox(String text) {
-    return Container(
-      width: itemSize, // Use the constant here
-      height: itemSize, // Use the constant here
-      margin: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        child: item.buildWidget(itemSize),
       ),
     );
   }
@@ -345,12 +250,6 @@ class TierListPageState extends State<TierListPage> {
       default:
         return Colors.grey;
     }
-  }
-
-  Widget _buildCustomItem(Map<String, dynamic> item) {
-    return item['type'] == 'image'
-        ? _buildImageThumbnail(item['content'])
-        : _buildTextBox(item['content']);
   }
 
   void _showTextInputDialog(BuildContext context) {
@@ -391,13 +290,12 @@ class TierListPageState extends State<TierListPage> {
 
   void _addCustomTextBox(String text) {
     setState(() {
-      customItems.add({'type': 'text', 'content': text});
+      items.add(RankItem(content: text));
       _saveCustomItems();
     });
   }
 
-  void _showItemOptions(BuildContext context, Map<String, dynamic> item,
-      String? tier, int index) {
+  void _showItemOptions(BuildContext context, RankItem item) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -411,7 +309,7 @@ class TierListPageState extends State<TierListPage> {
                 title: const Text('Rename'),
                 onTap: () {
                   Navigator.pop(context);
-                  _showRenameDialog(context, item, tier, index);
+                  _showRenameDialog(context, item);
                 },
               ),
               ListTile(
@@ -419,7 +317,7 @@ class TierListPageState extends State<TierListPage> {
                 title: const Text('Delete'),
                 onTap: () {
                   Navigator.pop(context);
-                  _deleteItem(item, tier, index);
+                  _deleteItem(item);
                 },
               ),
             ],
@@ -429,9 +327,8 @@ class TierListPageState extends State<TierListPage> {
     );
   }
 
-  void _showRenameDialog(BuildContext context, Map<String, dynamic> item,
-      String? tier, int index) {
-    String newName = item['content'];
+  void _showRenameDialog(BuildContext context, RankItem item) {
+    String newName = item.content;
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -442,7 +339,7 @@ class TierListPageState extends State<TierListPage> {
               newName = value;
             },
             textCapitalization: TextCapitalization.sentences,
-            controller: TextEditingController(text: item['content']),
+            controller: TextEditingController(text: item.content),
           ),
           actions: [
             TextButton(
@@ -454,7 +351,7 @@ class TierListPageState extends State<TierListPage> {
             TextButton(
               child: const Text('Rename'),
               onPressed: () {
-                _renameItem(item, newName, tier, index);
+                _renameItem(item, newName);
                 Navigator.of(context).pop();
               },
             ),
@@ -464,31 +361,23 @@ class TierListPageState extends State<TierListPage> {
     );
   }
 
-  void _renameItem(
-      Map<String, dynamic> item, String newName, String? tier, int index) {
+  void _renameItem(RankItem item, String newName) {
     setState(() {
-      item['content'] = newName;
+      item.content = newName;
       _saveCustomItems();
     });
   }
 
-  void _deleteItem(Map<String, dynamic> item, String? tier, int index) {
+  void _deleteItem(RankItem item) {
     setState(() {
-      if (tier != null) {
-        rankedItems[tier]!.removeAt(index);
-      } else {
-        customItems.removeAt(index);
-      }
+      items.remove(item);
       _saveCustomItems();
     });
   }
 
   Future<void> deleteAllContent() async {
     setState(() {
-      customItems.clear();
-      for (var tier in tiers) {
-        rankedItems[tier]!.clear();
-      }
+      items.clear();
     });
     await _saveCustomItems();
   }

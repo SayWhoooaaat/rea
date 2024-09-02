@@ -33,6 +33,7 @@ dependencies:
   flutter_speed_dial: ^6.2.0
   shared_preferences: ^2.2.2
   reorderables: ^0.6.0
+  uuid: ^3.0.7
 
 
   # The following adds the Cupertino Icons font to your application.
