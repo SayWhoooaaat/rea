@@ -341,11 +341,38 @@ class TierListPageState extends State<TierListPage> {
                 title: const Text('Delete'),
                 onTap: () {
                   Navigator.pop(context);
-                  _deleteItem(item);
+                  _showDeleteConfirmationDialog(context, item);
                 },
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, RankItem item) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Item'),
+          content: Text('Are you sure you want to delete "${item.content}"?'),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Delete'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteItem(item);
+              },
+            ),
+          ],
         );
       },
     );
