@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'models/rank_item.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -312,39 +313,75 @@ class TierListPageState extends State<TierListPage> {
   }
 
   void _showItemOptions(BuildContext context, RankItem item) {
+    // Calculate the maximum width and height based on screen size
+    final screenSize = MediaQuery.of(context).size;
+    final maxWidth = screenSize.width * 0.9; // 90% of screen width
+    final maxHeight = screenSize.height * 0.8; // 80% of screen height
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(item.content),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Rename'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showRenameDialog(context, item);
-                },
+        return Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: maxWidth,
+              maxHeight: maxHeight,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      item.content,
+                      style: Theme.of(context).textTheme.titleLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  if (item.imagePath != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: AspectRatio(
+                        aspectRatio: 1.0, // Maintain a square aspect ratio
+                        child: Container(
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: FileImage(File(item.imagePath!)),
+                              fit: BoxFit.contain,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: const Text('Rename'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showRenameDialog(context, item);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.image),
+                    title: const Text('Set Image'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showImageSourceDialog(context, item);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete),
+                    title: const Text('Delete'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showDeleteConfirmationDialog(context, item);
+                    },
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.image),
-                title: const Text('Set Image'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showImageSourceDialog(context, item);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete),
-                title: const Text('Delete'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showDeleteConfirmationDialog(context, item);
-                },
-              ),
-            ],
+            ),
           ),
         );
       },
