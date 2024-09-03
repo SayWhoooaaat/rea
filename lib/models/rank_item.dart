@@ -39,48 +39,74 @@ class RankItem {
     };
   }
 
-  // Method to handle image importing and processing
-  Future<void> importImage(String path) async {
-    // TODO: Implement image importing, cropping, and downscaling
-    imagePath = path;
-  }
-
   // Widget to display the item
   Widget buildWidget(double size) {
-    if (imagePath != null) {
-      return Container(
-        width: size,
-        height: size,
-        margin: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: FileImage(File(imagePath!)),
-            fit: BoxFit.cover,
-          ),
-          borderRadius: BorderRadius.circular(4),
-        ),
-      );
-    } else {
-      return Container(
-        width: size,
-        height: size,
-        margin: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Center(
-          child: Text(
-            content,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+    return Container(
+      width: size,
+      height: size,
+      margin: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(4),
+        image: imagePath != null
+            ? DecorationImage(
+                image: FileImage(File(imagePath!)),
+                fit: BoxFit.cover,
+              )
+            : null,
+      ),
+      child: Stack(
+        children: [
+          if (imagePath == null)
+            Center(
+              child: Text(
+                content,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
-        ),
-      );
-    }
+          if (imagePath != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
+                child: Center(
+                  child: Stack(
+                    children: [
+                      // Outline
+                      Text(
+                        content,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          foreground: Paint()
+                            ..style = PaintingStyle.stroke
+                            ..strokeWidth = 3
+                            ..color = Colors.black,
+                        ),
+                      ),
+                      // Fill
+                      Text(
+                        content,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> pickAndSetImage(ImageSource source) async {
