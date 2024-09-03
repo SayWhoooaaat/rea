@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import 'models/rank_item.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -252,6 +255,19 @@ class TierListPageState extends State<TierListPage> {
     }
   }
 
+  Future<bool> _requestPermission(Permission permission) async {
+    if (await permission.isGranted) {
+      return true;
+    } else {
+      var result = await permission.request();
+      if (result.isPermanentlyDenied) {
+        // Open app settings if permission is permanently denied
+        await openAppSettings();
+      }
+      return result.isGranted;
+    }
+  }
+
   void _showTextInputDialog(BuildContext context) {
     String inputText = '';
     showDialog(
@@ -313,6 +329,14 @@ class TierListPageState extends State<TierListPage> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.image),
+                title: const Text('Set Image'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showImageSourceDialog(context, item);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.delete),
                 title: const Text('Delete'),
                 onTap: () {
@@ -325,6 +349,77 @@ class TierListPageState extends State<TierListPage> {
         );
       },
     );
+  }
+
+  void _showImageSourceDialog(BuildContext context, RankItem item) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Choose Image Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Device'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery, item);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Open Camera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera, item);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source, RankItem item) async {
+    try {
+      bool hasPermission = true;
+      if (!kIsWeb) {
+        if (source == ImageSource.gallery) {
+          hasPermission = await _requestPermission(Permission.photos);
+        } else {
+          hasPermission = await _requestPermission(Permission.camera);
+        }
+      }
+
+      if (hasPermission) {
+        await item.pickAndSetImage(source);
+        if (mounted) {
+          setState(() {
+            _saveCustomItems();
+          });
+        }
+      } else {
+        print('Permission not granted');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Permission denied. Please grant access in app settings.')),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      print('Error setting image: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error setting image: $e')),
+        );
+      }
+    }
   }
 
   void _showRenameDialog(BuildContext context, RankItem item) {
