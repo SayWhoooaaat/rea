@@ -108,7 +108,7 @@ class RankItem {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Image',
-            toolbarColor: Colors.deepOrange,
+            toolbarColor: const Color.fromARGB(255, 62, 49, 34),
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
@@ -150,8 +150,16 @@ class RankItem {
           img.copyResize(image, width: 800, height: 800);
 
       final Directory appDir = await getApplicationDocumentsDirectory();
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}.png';
+      final String fileName = '$id.png'; // Use the item's id for the filename
       final String filePath = '${appDir.path}/$fileName';
+
+      // Delete the old image if it exists
+      if (this.imagePath != null) {
+        final File oldImage = File(this.imagePath!);
+        if (await oldImage.exists()) {
+          await oldImage.delete();
+        }
+      }
 
       final File newImage = File(filePath);
       await newImage.writeAsBytes(img.encodePng(resizedImage));
@@ -161,6 +169,19 @@ class RankItem {
       print('Error processing and saving image: $e');
       print('Stack trace: $stackTrace');
       throw Exception('Failed to process and save image: $e');
+    }
+  }
+
+  Future<void> deleteAssociatedFiles() async {
+    if (imagePath != null) {
+      try {
+        final File imageFile = File(imagePath!);
+        if (await imageFile.exists()) {
+          await imageFile.delete();
+        }
+      } catch (e) {
+        print('Error deleting image file: $e');
+      }
     }
   }
 }

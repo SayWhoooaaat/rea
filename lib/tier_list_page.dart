@@ -316,7 +316,7 @@ class TierListPageState extends State<TierListPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Item Options'),
+          title: Text(item.content),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -464,6 +464,7 @@ class TierListPageState extends State<TierListPage> {
   }
 
   void _deleteItem(RankItem item) {
+    item.deleteAssociatedFiles();
     setState(() {
       items.remove(item);
       _saveCustomItems();
@@ -471,6 +472,9 @@ class TierListPageState extends State<TierListPage> {
   }
 
   Future<void> deleteAllContent() async {
+    for (var item in items) {
+      await item.deleteAssociatedFiles();
+    }
     setState(() {
       items.clear();
     });
