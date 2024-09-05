@@ -62,8 +62,36 @@ class TierListPageState extends State<TierListPage> {
     await prefs.setString(_storageKey, itemsJson);
   }
 
+  void sortRankItemsByIntertier(List<RankItem> items) {
+    items.sort((a, b) {
+      int aTierIndex = a.tier != null ? tiers.indexOf(a.tier!) : tiers.length;
+      int bTierIndex = b.tier != null ? tiers.indexOf(b.tier!) : tiers.length;
+
+      // First, sort by tier
+      if (aTierIndex != bTierIndex) {
+        return aTierIndex.compareTo(bTierIndex);
+      }
+
+      // If in the same tier (including unranked), sort by intertier
+      return (a.intertier ?? double.maxFinite)
+          .compareTo(b.intertier ?? double.maxFinite);
+    });
+
+    // Update intertier values
+    String? currentTier;
+    int intertierCount = 1;
+    for (var item in items) {
+      if (item.tier != currentTier) {
+        currentTier = item.tier;
+        intertierCount = 1;
+      }
+      item.intertier = intertierCount++;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    sortRankItemsByIntertier(items); // Sort items by intertier
     return FutureBuilder(
       future: _loadItemsFuture,
       builder: (context, snapshot) {
@@ -172,6 +200,7 @@ class TierListPageState extends State<TierListPage> {
                 final item = details.data;
                 setState(() {
                   item.tier = tier;
+                  updateItemIntertier(item, details.offset, item.tier);
                   _saveCustomItems();
                 });
               },
@@ -202,14 +231,52 @@ class TierListPageState extends State<TierListPage> {
         final item = details.data;
         setState(() {
           item.tier = null;
+          updateItemIntertier(item, details.offset, null);
           _saveCustomItems();
         });
       },
     );
   }
 
+  void updateItemIntertier(RankItem item, Offset dropPosition, String? tier) {
+    // Remove the item from its current position
+    items.remove(item);
+
+    List<RankItem> relevantItems = items.where((i) => i.tier == tier).toList();
+    relevantItems
+        .sort((a, b) => (a.intertier ?? 0).compareTo(b.intertier ?? 0));
+
+    int dropIndex = 0;
+    for (int i = 0; i < relevantItems.length; i++) {
+      RenderBox box =
+          relevantItems[i].key.currentContext!.findRenderObject() as RenderBox;
+      Offset itemPosition = box.localToGlobal(Offset.zero);
+      if (dropPosition.dx > itemPosition.dx) {
+        dropIndex = i + 1;
+      } else {
+        break;
+      }
+    }
+
+    // Insert the item at the correct position
+    relevantItems.insert(dropIndex, item);
+
+    // Update the tier of the item
+    item.tier = tier;
+
+    // Renumber all items from 1 to n
+    for (int i = 0; i < relevantItems.length; i++) {
+      relevantItems[i].intertier = i + 1;
+    }
+
+    // Update the main items list
+    items.removeWhere((i) => i.tier == tier);
+    items.addAll(relevantItems);
+  }
+
   Widget _buildDraggableItem(RankItem item) {
     return GestureDetector(
+      key: item.key,
       onDoubleTap: () {
         if (mounted) {
           _showItemOptions(context, item);
@@ -327,60 +394,83 @@ class TierListPageState extends State<TierListPage> {
               maxWidth: maxWidth,
               maxHeight: maxHeight,
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      item.content,
-                      style: Theme.of(context).textTheme.titleLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  if (item.imagePath != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: AspectRatio(
-                        aspectRatio: 1.0, // Maintain a square aspect ratio
-                        child: Container(
-                          decoration: BoxDecoration(
-                            image: DecorationImage(
-                              image: FileImage(File(item.imagePath!)),
-                              fit: BoxFit.contain,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          item.content,
+                          style: Theme.of(context).textTheme.titleLarge,
+                          textAlign: TextAlign.center,
                         ),
                       ),
+                      if (item.imagePath != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: AspectRatio(
+                            aspectRatio: 1.0, // Maintain a square aspect ratio
+                            child: Container(
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: FileImage(File(item.imagePath!)),
+                                  fit: BoxFit.contain,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.edit),
+                        title: const Text('Rename'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showRenameDialog(context, item);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.image),
+                        title: const Text('Set Image'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showImageSourceDialog(context, item);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.delete),
+                        title: const Text('Delete'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showDeleteConfirmationDialog(context, item);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      //color: Colors.black54,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  ListTile(
-                    leading: const Icon(Icons.edit),
-                    title: const Text('Rename'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showRenameDialog(context, item);
-                    },
+                    child: Text(
+                      '${item.tier ?? "-"}${item.intertier ?? ""}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.image),
-                    title: const Text('Set Image'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showImageSourceDialog(context, item);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.delete),
-                    title: const Text('Delete'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showDeleteConfirmationDialog(context, item);
-                    },
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );

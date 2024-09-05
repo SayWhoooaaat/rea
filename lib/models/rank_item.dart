@@ -7,15 +7,18 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
 class RankItem {
+  final GlobalKey key = GlobalKey();
   final String id;
   String content; // This is the name
   String? imagePath;
   String? tier;
+  int? intertier;
 
   RankItem({
     required this.content,
     this.imagePath,
     this.tier,
+    this.intertier,
     String? id,
   }) : id = id ?? const Uuid().v4();
 
@@ -25,6 +28,7 @@ class RankItem {
       content: json['content'],
       imagePath: json['imagePath'],
       tier: json['tier'],
+      intertier: json['intertier'],
       id: json['id'],
     );
   }
@@ -36,6 +40,7 @@ class RankItem {
       'content': content,
       'imagePath': imagePath,
       'tier': tier,
+      'intertier': intertier,
     };
   }
 
