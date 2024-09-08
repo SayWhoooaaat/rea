@@ -5,8 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
-class RankItem {
+class RankItem extends ChangeNotifier {
   final GlobalKey key = GlobalKey();
   final String id;
   String content; // This is the name
@@ -47,6 +49,7 @@ class RankItem {
   // Widget to display the item
   Widget buildWidget(double size) {
     return Container(
+      key: ValueKey(imagePath),
       width: size,
       height: size,
       margin: const EdgeInsets.all(2),
@@ -114,14 +117,47 @@ class RankItem {
     );
   }
 
+  Future<bool> _requestPermission(Permission permission) async {
+    if (kIsWeb) return true; // Permissions are handled differently on web
+
+    if (await permission.isGranted) {
+      return true;
+    } else {
+      var result = await permission.request();
+      if (result.isPermanentlyDenied) {
+        // Open app settings if permission is permanently denied
+        await openAppSettings();
+      }
+      return result.isGranted;
+    }
+  }
+
   Future<void> pickAndSetImage(ImageSource source) async {
     try {
       print('pickAndSetImage');
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: source);
+      bool hasPermission = true;
+      if (!kIsWeb) {
+        if (source == ImageSource.gallery) {
+          hasPermission = await _requestPermission(Permission.photos);
+        } else {
+          hasPermission = await _requestPermission(Permission.camera);
+        }
+      }
 
-      if (image != null) {
-        await _cropAndProcessImage(image.path);
+      if (hasPermission) {
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(source: source);
+
+        if (image != null) {
+          await _cropAndProcessImage(image.path);
+          notifyListeners(); // This line is already here, which is good
+        } else {
+          print('Permission not granted');
+          throw Exception('Permission not granted');
+        }
+      } else {
+        print('Permission not granted');
+        throw Exception('Permission not granted');
       }
     } catch (e, stackTrace) {
       print('Error picking image: $e');
@@ -196,6 +232,7 @@ class RankItem {
       await newImage.writeAsBytes(img.encodePng(resizedImage));
 
       this.imagePath = filePath;
+      notifyListeners();
     } catch (e, stackTrace) {
       print('Error processing and saving image: $e');
       print('Stack trace: $stackTrace');
@@ -214,5 +251,232 @@ class RankItem {
         print('Error deleting image file: $e');
       }
     }
+  }
+
+  void rename(String newName) {
+    content = newName;
+    notifyListeners();
+  }
+
+  Future<void> showImageSourceDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Choose Image Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Device'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    await pickAndSetImage(ImageSource.gallery);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Open Camera'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    await pickAndSetImage(ImageSource.camera);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> showRenameDialog(BuildContext context) async {
+    String newName = content;
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Rename Item'),
+          content: TextField(
+            onChanged: (value) {
+              newName = value;
+            },
+            textCapitalization: TextCapitalization.sentences,
+            controller: TextEditingController(text: content),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Rename'),
+              onPressed: () {
+                rename(newName);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> showDeleteConfirmationDialog(BuildContext context) async {
+    bool shouldDelete = false;
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Item'),
+          content: Text('Are you sure you want to delete "$content"?'),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Delete'),
+              onPressed: () {
+                shouldDelete = true;
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+    return shouldDelete;
+  }
+
+  Future<bool> delete(BuildContext context) async {
+    bool shouldDelete = await showDeleteConfirmationDialog(context);
+    if (shouldDelete) {
+      await deleteAssociatedFiles();
+      return true;
+    }
+    return false;
+  }
+
+  void showItemOptions(
+      BuildContext context, Function onUpdate, Function onDelete) {
+    // Calculate the maximum width and height based on screen size
+    final screenSize = MediaQuery.of(context).size;
+    final maxWidth = screenSize.width * 0.9; // 90% of screen width
+    final maxHeight = screenSize.height * 0.8; // 80% of screen height
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: maxWidth,
+              maxHeight: maxHeight,
+            ),
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          content,
+                          style: Theme.of(context).textTheme.titleLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      if (imagePath != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: AspectRatio(
+                            aspectRatio: 1.0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: FileImage(File(imagePath!)),
+                                  fit: BoxFit.contain,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.edit),
+                        title: const Text('Rename'),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await showRenameDialog(context);
+                          onUpdate(); // Call this to trigger save in parent
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.image),
+                        title: const Text('Set Image'),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await showImageSourceDialog(context);
+                          onUpdate(); // This will trigger a rebuild and save in the parent
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.delete),
+                        title: const Text('Delete'),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          bool deleted = await delete(context);
+                          if (deleted) {
+                            onDelete();
+                          } else {
+                            onUpdate();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${tier ?? "-"}${intertier ?? ""}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

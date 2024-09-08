@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:image_picker/image_picker.dart';
 import 'models/rank_item.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -37,6 +33,19 @@ class TierListPageState extends State<TierListPage> {
   void initState() {
     super.initState();
     _loadItemsFuture = _loadCustomItems();
+    // Add listeners to all items
+    for (var item in items) {
+      item.addListener(() => _saveAndNotifyItemUpdate());
+    }
+  }
+
+  @override
+  void dispose() {
+    // Remove listeners from all items
+    for (var item in items) {
+      item.removeListener(() => _saveAndNotifyItemUpdate());
+    }
+    super.dispose();
   }
 
   String get _storageKey => 'customItems_${widget.index}';
@@ -272,6 +281,9 @@ class TierListPageState extends State<TierListPage> {
     // Update the main items list
     items.removeWhere((i) => i.tier == tier);
     items.addAll(relevantItems);
+
+    // Add this line at the end of the method
+    _saveAndNotifyItemUpdate();
   }
 
   Widget _buildDraggableItem(RankItem item) {
@@ -279,7 +291,21 @@ class TierListPageState extends State<TierListPage> {
       key: item.key,
       onDoubleTap: () {
         if (mounted) {
-          _showItemOptions(context, item);
+          item.showItemOptions(
+            context,
+            () {
+              setState(() {
+                // This will trigger a rebuild of the widget
+              });
+              _saveAndNotifyItemUpdate();
+            },
+            () {
+              setState(() {
+                items.remove(item);
+              });
+              _saveAndNotifyItemUpdate();
+            },
+          );
         }
       },
       child: LongPressDraggable<RankItem>(
@@ -323,19 +349,6 @@ class TierListPageState extends State<TierListPage> {
     }
   }
 
-  Future<bool> _requestPermission(Permission permission) async {
-    if (await permission.isGranted) {
-      return true;
-    } else {
-      var result = await permission.request();
-      if (result.isPermanentlyDenied) {
-        // Open app settings if permission is permanently denied
-        await openAppSettings();
-      }
-      return result.isGranted;
-    }
-  }
-
   void _showTextInputDialog(BuildContext context) {
     String inputText = '';
     showDialog(
@@ -375,255 +388,11 @@ class TierListPageState extends State<TierListPage> {
   void _addCustomTextBox(String text) {
     setState(() {
       items.add(RankItem(content: text));
-      _saveCustomItems();
+      _saveAndNotifyItemUpdate();
     });
   }
 
-  void _showItemOptions(BuildContext context, RankItem item) {
-    // Calculate the maximum width and height based on screen size
-    final screenSize = MediaQuery.of(context).size;
-    final maxWidth = screenSize.width * 0.9; // 90% of screen width
-    final maxHeight = screenSize.height * 0.8; // 80% of screen height
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: maxWidth,
-              maxHeight: maxHeight,
-            ),
-            child: Stack(
-              children: [
-                SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          item.content,
-                          style: Theme.of(context).textTheme.titleLarge,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      if (item.imagePath != null)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: AspectRatio(
-                            aspectRatio: 1.0, // Maintain a square aspect ratio
-                            child: Container(
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: FileImage(File(item.imagePath!)),
-                                  fit: BoxFit.contain,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ListTile(
-                        leading: const Icon(Icons.edit),
-                        title: const Text('Rename'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _showRenameDialog(context, item);
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.image),
-                        title: const Text('Set Image'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _showImageSourceDialog(context, item);
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.delete),
-                        title: const Text('Delete'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _showDeleteConfirmationDialog(context, item);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      //color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${item.tier ?? "-"}${item.intertier ?? ""}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showDeleteConfirmationDialog(BuildContext context, RankItem item) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Item'),
-          content: Text('Are you sure you want to delete "${item.content}"?'),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Delete'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _deleteItem(item);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showImageSourceDialog(BuildContext context, RankItem item) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Choose Image Source'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Device'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.gallery, item);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Open Camera'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.camera, item);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _pickImage(ImageSource source, RankItem item) async {
-    try {
-      bool hasPermission = true;
-      if (!kIsWeb) {
-        if (source == ImageSource.gallery) {
-          hasPermission = await _requestPermission(Permission.photos);
-        } else {
-          hasPermission = await _requestPermission(Permission.camera);
-        }
-      }
-
-      if (hasPermission) {
-        await item.pickAndSetImage(source);
-        if (mounted) {
-          setState(() {
-            _saveCustomItems();
-          });
-        }
-      } else {
-        print('Permission not granted');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Permission denied. Please grant access in app settings.')),
-          );
-        }
-      }
-    } catch (e, stackTrace) {
-      print('Error setting image: $e');
-      print('Stack trace: $stackTrace');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error setting image: $e')),
-        );
-      }
-    }
-  }
-
-  void _showRenameDialog(BuildContext context, RankItem item) {
-    String newName = item.content;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Rename Item'),
-          content: TextField(
-            onChanged: (value) {
-              newName = value;
-            },
-            textCapitalization: TextCapitalization.sentences,
-            controller: TextEditingController(text: item.content),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Rename'),
-              onPressed: () {
-                _renameItem(item, newName);
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _renameItem(RankItem item, String newName) {
-    setState(() {
-      item.content = newName;
-      _saveCustomItems();
-    });
-  }
-
-  void _deleteItem(RankItem item) {
-    item.deleteAssociatedFiles();
-    setState(() {
-      items.remove(item);
-      _saveCustomItems();
-    });
-  }
+  // Remove the _deleteItem method as it's no longer needed
 
   Future<void> deleteAllContent() async {
     for (var item in items) {
@@ -633,5 +402,11 @@ class TierListPageState extends State<TierListPage> {
       items.clear();
     });
     await _saveCustomItems();
+  }
+
+  // Add this method to save items whenever they are updated
+  void _saveAndNotifyItemUpdate() {
+    _saveCustomItems();
+    setState(() {}); // Trigger a rebuild to reflect changes
   }
 }
