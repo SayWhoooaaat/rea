@@ -341,7 +341,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (confirmDelete) {
       int deletedIndex = _tierLists[index]['index'];
-
+      await _tierListPages[deletedIndex]?.deleteAllContent();
       // Clear SharedPreferences data for the deleted tier list
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('customItems_$deletedIndex');

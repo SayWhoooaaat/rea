@@ -16,6 +16,14 @@ class TierListPage extends StatefulWidget {
       this.hidden = false,
       this.password = ''});
 
+  Future<void> deleteAllContent() async {
+    if (key is GlobalKey<TierListPageState>) {
+      await (key as GlobalKey<TierListPageState>)
+          .currentState
+          ?.deleteAllContent();
+    }
+  }
+
   @override
   State<TierListPage> createState() => TierListPageState();
 }
