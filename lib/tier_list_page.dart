@@ -3,6 +3,7 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'models/rank_item.dart';
+import 'package:image_picker/image_picker.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -152,15 +153,39 @@ class TierListPageState extends State<TierListPage> {
                 SpeedDialChild(
                   child: const Icon(Icons.photo_library),
                   label: 'Pick from device',
-                  onTap: () {
-                    // Implement pick from device logic
+                  onTap: () async {
+                    final newItem =
+                        RankItem(content: '', onUpdate: _saveCustomItems);
+                    try {
+                      await newItem.pickAndSetImage(ImageSource.gallery);
+                      setState(() {
+                        items.add(newItem);
+                      });
+                      _saveAndNotifyItemUpdate();
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   },
                 ),
                 SpeedDialChild(
                   child: const Icon(Icons.camera_alt),
                   label: 'Open camera',
-                  onTap: () {
-                    // Implement open camera logic
+                  onTap: () async {
+                    final newItem =
+                        RankItem(content: '', onUpdate: _saveCustomItems);
+                    try {
+                      await newItem.pickAndSetImage(ImageSource.camera);
+                      setState(() {
+                        items.add(newItem);
+                      });
+                      _saveAndNotifyItemUpdate();
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   },
                 ),
                 SpeedDialChild(
