@@ -33,17 +33,14 @@ class TierListPageState extends State<TierListPage> {
   void initState() {
     super.initState();
     _loadItemsFuture = _loadCustomItems();
-    // Add listeners to all items
-    for (var item in items) {
-      item.addListener(() => _saveAndNotifyItemUpdate());
-    }
   }
 
   @override
   void dispose() {
-    // Remove listeners from all items
+    // Update this part
     for (var item in items) {
-      item.removeListener(() => _saveAndNotifyItemUpdate());
+      item.removeListener(() => _onItemChanged(item));
+      item.imagePathNotifier.removeListener(() => _onItemChanged(item));
     }
     super.dispose();
   }
@@ -54,14 +51,23 @@ class TierListPageState extends State<TierListPage> {
     final prefs = await SharedPreferences.getInstance();
     final String? itemsJson = prefs.getString(_storageKey);
 
-    setState(() {
-      if (itemsJson != null) {
-        final List<dynamic> decodedItems = json.decode(itemsJson);
-        items = decodedItems.map((item) => RankItem.fromJson(item)).toList();
-      } else {
-        items = [];
+    if (itemsJson != null) {
+      final List<dynamic> decodedItems = json.decode(itemsJson);
+      items = decodedItems.map((item) => RankItem.fromJson(item)).toList();
+      for (var item in items) {
+        item.addListener(() => _onItemChanged(item));
+        item.imagePathNotifier.addListener(() => _onItemChanged(item));
       }
-    });
+    } else {
+      items = [];
+    }
+    setState(() {});
+  }
+
+  void _onItemChanged(RankItem item) {
+    print('Item changed: ${item.content}, Image: ${item.imagePath}');
+    _saveCustomItems();
+    setState(() {});
   }
 
   Future<void> _saveCustomItems() async {
@@ -69,6 +75,7 @@ class TierListPageState extends State<TierListPage> {
     final String itemsJson =
         json.encode(items.map((item) => item.toJson()).toList());
     await prefs.setString(_storageKey, itemsJson);
+    print('Items saved: $itemsJson');
   }
 
   void sortRankItemsByIntertier(List<RankItem> items) {
@@ -287,44 +294,44 @@ class TierListPageState extends State<TierListPage> {
   }
 
   Widget _buildDraggableItem(RankItem item) {
-    return GestureDetector(
-      key: item.key,
-      onDoubleTap: () {
-        if (mounted) {
-          item.showItemOptions(
-            context,
-            () {
-              setState(() {
-                // This will trigger a rebuild of the widget
-              });
-              _saveAndNotifyItemUpdate();
-            },
-            () {
-              setState(() {
-                items.remove(item);
-              });
-              _saveAndNotifyItemUpdate();
-            },
-          );
-        }
-      },
-      child: LongPressDraggable<RankItem>(
-        data: item,
-        delay: const Duration(milliseconds: 300),
-        feedback: Material(
-          elevation: 4.0,
-          child: SizedBox(
-            width: itemSize,
-            height: itemSize,
+    return ListenableBuilder(
+      listenable: Listenable.merge([item, item.imagePathNotifier]),
+      builder: (context, child) {
+        return GestureDetector(
+          key: item.key,
+          onDoubleTap: () {
+            if (mounted) {
+              item.showItemOptions(
+                context,
+                () => _onItemChanged(item),
+                () {
+                  setState(() {
+                    items.remove(item);
+                  });
+                  _saveCustomItems();
+                },
+              );
+            }
+          },
+          child: LongPressDraggable<RankItem>(
+            data: item,
+            delay: const Duration(milliseconds: 300),
+            feedback: Material(
+              elevation: 4.0,
+              child: SizedBox(
+                width: itemSize,
+                height: itemSize,
+                child: item.buildWidget(itemSize),
+              ),
+            ),
+            childWhenDragging: Opacity(
+              opacity: 0.5,
+              child: item.buildWidget(itemSize),
+            ),
             child: item.buildWidget(itemSize),
           ),
-        ),
-        childWhenDragging: Opacity(
-          opacity: 0.5,
-          child: item.buildWidget(itemSize),
-        ),
-        child: item.buildWidget(itemSize),
-      ),
+        );
+      },
     );
   }
 
