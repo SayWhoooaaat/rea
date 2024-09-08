@@ -107,7 +107,6 @@ class TierListPageState extends State<TierListPage> {
 
   @override
   Widget build(BuildContext context) {
-    sortRankItemsByIntertier(items); // Sort items by intertier
     return FutureBuilder(
       future: _loadItemsFuture,
       builder: (context, snapshot) {
@@ -217,6 +216,7 @@ class TierListPageState extends State<TierListPage> {
                 setState(() {
                   item.tier = tier;
                   updateItemIntertier(item, details.offset, item.tier);
+                  sortRankItemsByIntertier(items);
                   _saveCustomItems();
                 });
               },
@@ -248,6 +248,7 @@ class TierListPageState extends State<TierListPage> {
         setState(() {
           item.tier = null;
           updateItemIntertier(item, details.offset, null);
+          sortRankItemsByIntertier(items);
           _saveCustomItems();
         });
       },
@@ -299,7 +300,7 @@ class TierListPageState extends State<TierListPage> {
       builder: (context, child) {
         return GestureDetector(
           key: item.key,
-          onDoubleTap: () {
+          onTap: () {
             if (mounted) {
               item.showItemOptions(
                 context,
