@@ -33,6 +33,7 @@ class RankItem extends ChangeNotifier {
       print('Updating imagePath from ${imagePathNotifier.value} to $value');
       imagePathNotifier.value = value;
       notifyListeners();
+      imagePathNotifier.notifyListeners();
     } else {
       print('imagePath unchanged');
     }
@@ -67,7 +68,7 @@ class RankItem extends ChangeNotifier {
       builder: (context, imagePath, child) {
         print('Building widget with imagePath: $imagePath');
         return Container(
-          key: ValueKey(imagePath),
+          key: ValueKey('$id-$imagePath'),
           width: size,
           height: size,
           margin: const EdgeInsets.all(2),
@@ -228,7 +229,15 @@ class RankItem extends ChangeNotifier {
 
   Future<void> _processAndSaveImage(String imagePath) async {
     try {
-      print('processAndSaveImage');
+      // Delete the old image file if it exists
+      if (imagePathNotifier.value != null) {
+        File oldFile = File(imagePathNotifier.value!);
+        if (await oldFile.exists()) {
+          await oldFile.delete();
+          print('Deleted old image file: ${imagePathNotifier.value}');
+        }
+      }
+
       final File imageFile = File(imagePath);
       final img.Image? image = img.decodeImage(await imageFile.readAsBytes());
 
