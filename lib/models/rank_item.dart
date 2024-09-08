@@ -28,9 +28,13 @@ class RankItem extends ChangeNotifier {
   String? get imagePath => imagePathNotifier.value;
 
   set imagePath(String? value) {
+    print('Setter called with value: $value');
     if (imagePathNotifier.value != value) {
+      print('Updating imagePath from ${imagePathNotifier.value} to $value');
       imagePathNotifier.value = value;
       notifyListeners();
+    } else {
+      print('imagePath unchanged');
     }
   }
 
@@ -61,6 +65,7 @@ class RankItem extends ChangeNotifier {
     return ValueListenableBuilder<String?>(
       valueListenable: imagePathNotifier,
       builder: (context, imagePath, child) {
+        print('Building widget with imagePath: $imagePath');
         return Container(
           key: ValueKey(imagePath),
           width: size,
@@ -166,7 +171,9 @@ class RankItem extends ChangeNotifier {
 
         if (image != null) {
           await _cropAndProcessImage(image.path);
-          notifyListeners(); // This line is already here, which is good
+          notifyListeners();
+          imagePathNotifier.notifyListeners();
+          print('Image updated, notified listeners');
         } else {
           print('Permission not granted');
           throw Exception('Permission not granted');
@@ -233,22 +240,20 @@ class RankItem extends ChangeNotifier {
           img.copyResize(image, width: 800, height: 800);
 
       final Directory appDir = await getApplicationDocumentsDirectory();
-      final String fileName = '$id.png'; // Use the item's id for the filename
+      final String fileName =
+          '${id}_${DateTime.now().millisecondsSinceEpoch}.png';
       final String filePath = '${appDir.path}/$fileName';
 
-      // Delete the old image if it exists
-      if (this.imagePath != null) {
-        final File oldImage = File(this.imagePath!);
-        if (await oldImage.exists()) {
-          await oldImage.delete();
-        }
-      }
+      print('Old imagePath: ${this.imagePath}');
+      print('New filePath: $filePath');
 
       final File newImage = File(filePath);
       await newImage.writeAsBytes(img.encodePng(resizedImage));
+      print('Wrote new image to $filePath');
 
+      // Use the setter to update the imagePath
       this.imagePath = filePath;
-      // Remove the notifyListeners() call here as it's now in the setter
+      print('Set new imagePath to $filePath');
     } catch (e, stackTrace) {
       print('Error processing and saving image: $e');
       print('Stack trace: $stackTrace');
