@@ -11,18 +11,28 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class RankItem extends ChangeNotifier {
   final GlobalKey key = GlobalKey();
   final String id;
-  String content; // This is the name
-  String? imagePath;
+  String content;
+  ValueNotifier<String?> imagePathNotifier;
   String? tier;
   int? intertier;
 
   RankItem({
     required this.content,
-    this.imagePath,
+    String? imagePath,
     this.tier,
     this.intertier,
     String? id,
-  }) : id = id ?? const Uuid().v4();
+  })  : id = id ?? const Uuid().v4(),
+        imagePathNotifier = ValueNotifier(imagePath);
+
+  String? get imagePath => imagePathNotifier.value;
+
+  set imagePath(String? value) {
+    if (imagePathNotifier.value != value) {
+      imagePathNotifier.value = value;
+      notifyListeners();
+    }
+  }
 
   // Factory constructor to create a RankItem from JSON
   factory RankItem.fromJson(Map<String, dynamic> json) {
@@ -48,72 +58,78 @@ class RankItem extends ChangeNotifier {
 
   // Widget to display the item
   Widget buildWidget(double size) {
-    return Container(
-      key: ValueKey(imagePath),
-      width: size,
-      height: size,
-      margin: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(4),
-        image: imagePath != null
-            ? DecorationImage(
-                image: FileImage(File(imagePath!)),
-                fit: BoxFit.cover,
-              )
-            : null,
-      ),
-      child: Stack(
-        children: [
-          if (imagePath == null)
-            Center(
-              child: Text(
-                content,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          if (imagePath != null)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
-                child: Center(
-                  child: Stack(
-                    children: [
-                      // Outline
-                      Text(
-                        content,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          foreground: Paint()
-                            ..style = PaintingStyle.stroke
-                            ..strokeWidth = 3
-                            ..color = Colors.black,
-                        ),
-                      ),
-                      // Fill
-                      Text(
-                        content,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+    return ValueListenableBuilder<String?>(
+      valueListenable: imagePathNotifier,
+      builder: (context, imagePath, child) {
+        return Container(
+          key: ValueKey(imagePath),
+          width: size,
+          height: size,
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(4),
+            image: imagePath != null
+                ? DecorationImage(
+                    image: FileImage(File(imagePath)),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: Stack(
+            children: [
+              if (imagePath == null)
+                Center(
+                  child: Text(
+                    content,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
-      ),
+              if (imagePath != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
+                    child: Center(
+                      child: Stack(
+                        children: [
+                          // Outline
+                          Text(
+                            content,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              foreground: Paint()
+                                ..style = PaintingStyle.stroke
+                                ..strokeWidth = 3
+                                ..color = Colors.black,
+                            ),
+                          ),
+                          // Fill
+                          Text(
+                            content,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -232,7 +248,7 @@ class RankItem extends ChangeNotifier {
       await newImage.writeAsBytes(img.encodePng(resizedImage));
 
       this.imagePath = filePath;
-      notifyListeners();
+      // Remove the notifyListeners() call here as it's now in the setter
     } catch (e, stackTrace) {
       print('Error processing and saving image: $e');
       print('Stack trace: $stackTrace');
