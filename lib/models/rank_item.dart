@@ -15,6 +15,7 @@ class RankItem extends ChangeNotifier {
   ValueNotifier<String?> imagePathNotifier;
   String? tier;
   int? intertier;
+  final Function() onUpdate;
 
   RankItem({
     required this.content,
@@ -22,6 +23,7 @@ class RankItem extends ChangeNotifier {
     this.tier,
     this.intertier,
     String? id,
+    required this.onUpdate,
   })  : id = id ?? const Uuid().v4(),
         imagePathNotifier = ValueNotifier(imagePath);
 
@@ -34,19 +36,22 @@ class RankItem extends ChangeNotifier {
       imagePathNotifier.value = value;
       notifyListeners();
       imagePathNotifier.notifyListeners();
+      onUpdate();
     } else {
       print('imagePath unchanged');
     }
   }
 
   // Factory constructor to create a RankItem from JSON
-  factory RankItem.fromJson(Map<String, dynamic> json) {
+  factory RankItem.fromJson(Map<String, dynamic> json,
+      {required Function() onUpdate}) {
     return RankItem(
       content: json['content'],
       imagePath: json['imagePath'],
       tier: json['tier'],
       intertier: json['intertier'],
       id: json['id'],
+      onUpdate: onUpdate,
     );
   }
 
@@ -176,8 +181,7 @@ class RankItem extends ChangeNotifier {
           imagePathNotifier.notifyListeners();
           print('Image updated, notified listeners');
         } else {
-          print('Permission not granted');
-          throw Exception('Permission not granted');
+          print('No image selected');
         }
       } else {
         print('Permission not granted');
@@ -286,6 +290,7 @@ class RankItem extends ChangeNotifier {
   void rename(String newName) {
     content = newName;
     notifyListeners();
+    onUpdate();
   }
 
   Future<void> showImageSourceDialog(BuildContext context) async {
