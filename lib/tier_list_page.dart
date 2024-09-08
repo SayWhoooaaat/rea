@@ -61,7 +61,9 @@ class TierListPageState extends State<TierListPage> {
 
     if (itemsJson != null) {
       final List<dynamic> decodedItems = json.decode(itemsJson);
-      items = decodedItems.map((item) => RankItem.fromJson(item)).toList();
+      items = decodedItems
+          .map((item) => RankItem.fromJson(item, onUpdate: _saveCustomItems))
+          .toList();
       for (var item in items) {
         item.addListener(() => _onItemChanged(item));
         item.imagePathNotifier.addListener(() => _onItemChanged(item));
@@ -312,7 +314,10 @@ class TierListPageState extends State<TierListPage> {
             if (mounted) {
               item.showItemOptions(
                 context,
-                () => _onItemChanged(item),
+                () {
+                  _onItemChanged(item);
+                  _saveCustomItems(); // Add this line
+                },
                 () {
                   setState(() {
                     items.remove(item);
@@ -403,7 +408,7 @@ class TierListPageState extends State<TierListPage> {
 
   void _addCustomTextBox(String text) {
     setState(() {
-      items.add(RankItem(content: text));
+      items.add(RankItem(content: text, onUpdate: _saveCustomItems));
       _saveAndNotifyItemUpdate();
     });
   }
