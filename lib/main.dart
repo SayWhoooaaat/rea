@@ -421,16 +421,22 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               if (showSearchBar)
                 Padding(
-                  padding: const EdgeInsets.all(4.0),
+                  padding: const EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 0),
                   child: TextField(
                     focusNode: _searchFocusNode,
                     decoration: InputDecoration(
                       hintText: 'Search tier lists...',
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search, size: 20),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(1),
+                        borderSide: BorderSide.none,
                       ),
+                      filled: true,
+                      fillColor: Colors.grey[800],
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      isDense: true,
                     ),
+                    style: const TextStyle(fontSize: 14),
                     onChanged: (value) {
                       setState(() {
                         _searchQuery = value;
