@@ -3,7 +3,9 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'models/rank_item.dart';
+import 'web_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -190,9 +192,28 @@ class TierListPageState extends State<TierListPage> {
                 ),
                 SpeedDialChild(
                   child: const Icon(Icons.search),
-                  label: 'Google image search',
-                  onTap: () {
-                    // Implement Google image search logic
+                  label: 'Web image search',
+                  onTap: () async {
+                    final newItem =
+                        RankItem(content: '', onUpdate: _saveCustomItems);
+                    try {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => WebViewScreenshotPage()),
+                      );
+                      if (result != null && result is Uint8List) {
+                        await newItem.saveWebImage(result);
+                        setState(() {
+                          items.add(newItem);
+                        });
+                        _saveAndNotifyItemUpdate();
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   },
                 ),
                 SpeedDialChild(

@@ -7,6 +7,8 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
+import 'package:rea/web_picker.dart';
 
 class RankItem extends ChangeNotifier {
   final GlobalKey key = GlobalKey();
@@ -330,11 +332,48 @@ class RankItem extends ChangeNotifier {
                   }
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.search),
+                title: const Text('Web Image Search'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    final Uint8List? imageBytes = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => WebViewScreenshotPage()),
+                    );
+                    if (imageBytes != null) {
+                      await saveWebImage(imageBytes);
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                },
+              ),
             ],
           ),
         );
       },
     );
+  }
+
+  Future<void> saveWebImage(Uint8List imageBytes) async {
+    final Directory appDir = await getApplicationDocumentsDirectory();
+    final String fileName =
+        '${id}_${DateTime.now().millisecondsSinceEpoch}.png';
+    final String filePath = '${appDir.path}/$fileName';
+
+    final File imageFile = File(filePath);
+    await imageFile.writeAsBytes(imageBytes);
+
+    // Use the setter to update the imagePath
+    this.imagePath = filePath;
+    print('Set new imagePath to $filePath');
+    notifyListeners();
+    onUpdate();
   }
 
   Future<void> showRenameDialog(BuildContext context) async {
