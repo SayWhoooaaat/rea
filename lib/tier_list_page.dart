@@ -37,6 +37,9 @@ class TierListPageState extends State<TierListPage> {
 
   late Future<void> _loadItemsFuture;
 
+  final Map<RankItem, VoidCallback> itemListeners = {};
+  final Map<RankItem, VoidCallback> imagePathListeners = {};
+
   // Add this constant at the top of the class
   static const double itemSize = 70.0;
 
@@ -48,10 +51,13 @@ class TierListPageState extends State<TierListPage> {
 
   @override
   void dispose() {
-    // Update this part
     for (var item in items) {
-      item.removeListener(() => _onItemChanged(item));
-      item.imagePathNotifier.removeListener(() => _onItemChanged(item));
+      if (itemListeners.containsKey(item)) {
+        item.removeListener(itemListeners[item]!);
+      }
+      if (imagePathListeners.containsKey(item)) {
+        item.imagePathNotifier.removeListener(imagePathListeners[item]!);
+      }
     }
     super.dispose();
   }
@@ -68,8 +74,14 @@ class TierListPageState extends State<TierListPage> {
           .map((item) => RankItem.fromJson(item, onUpdate: _saveCustomItems))
           .toList();
       for (var item in items) {
-        item.addListener(() => _onItemChanged(item));
-        item.imagePathNotifier.addListener(() => _onItemChanged(item));
+        VoidCallback itemListener = () => _onItemChanged(item);
+        VoidCallback imagePathListener = () => _onItemChanged(item);
+
+        item.addListener(itemListener);
+        item.imagePathNotifier.addListener(imagePathListener);
+
+        itemListeners[item] = itemListener;
+        imagePathListeners[item] = imagePathListener;
       }
     } else {
       items = [];
@@ -77,10 +89,28 @@ class TierListPageState extends State<TierListPage> {
     setState(() {});
   }
 
+  void _addItem(RankItem item) {
+    VoidCallback itemListener = () => _onItemChanged(item);
+    VoidCallback imagePathListener = () => _onItemChanged(item);
+
+    item.addListener(itemListener);
+    item.imagePathNotifier.addListener(imagePathListener);
+
+    itemListeners[item] = itemListener;
+    imagePathListeners[item] = imagePathListener;
+
+    setState(() {
+      items.add(item);
+    });
+    _saveAndNotifyItemUpdate();
+  }
+
   void _onItemChanged(RankItem item) {
     print('Item changed: ${item.content}, Image: ${item.imagePath}');
     _saveCustomItems();
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _saveCustomItems() async {
@@ -160,10 +190,7 @@ class TierListPageState extends State<TierListPage> {
                         RankItem(content: '', onUpdate: _saveCustomItems);
                     try {
                       await newItem.pickAndSetImage(ImageSource.gallery);
-                      setState(() {
-                        items.add(newItem);
-                      });
-                      _saveAndNotifyItemUpdate();
+                      _addItem(newItem);
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Error: $e')),
@@ -179,10 +206,7 @@ class TierListPageState extends State<TierListPage> {
                         RankItem(content: '', onUpdate: _saveCustomItems);
                     try {
                       await newItem.pickAndSetImage(ImageSource.camera);
-                      setState(() {
-                        items.add(newItem);
-                      });
-                      _saveAndNotifyItemUpdate();
+                      _addItem(newItem);
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Error: $e')),
@@ -204,10 +228,7 @@ class TierListPageState extends State<TierListPage> {
                       );
                       if (result != null && result is Uint8List) {
                         await newItem.saveWebImage(result);
-                        setState(() {
-                          items.add(newItem);
-                        });
-                        _saveAndNotifyItemUpdate();
+                        _addItem(newItem);
                       }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -453,10 +474,8 @@ class TierListPageState extends State<TierListPage> {
   }
 
   void _addCustomTextBox(String text) {
-    setState(() {
-      items.add(RankItem(content: text, onUpdate: _saveCustomItems));
-      _saveAndNotifyItemUpdate();
-    });
+    final newItem = RankItem(content: text, onUpdate: _saveCustomItems);
+    _addItem(newItem);
   }
 
   // Remove the _deleteItem method as it's no longer needed

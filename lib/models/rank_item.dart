@@ -385,7 +385,7 @@ class RankItem extends ChangeNotifier {
 
       notifyListeners();
       imagePathNotifier.notifyListeners();
-      //onUpdate();
+      onUpdate();
     } catch (e) {
       print('Error saving web image: $e');
       throw Exception('Failed to save web image: $e');
