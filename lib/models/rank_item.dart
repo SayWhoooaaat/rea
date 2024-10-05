@@ -296,6 +296,7 @@ class RankItem extends ChangeNotifier {
   }
 
   Future<void> showImageSourceDialog(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     await showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -347,7 +348,7 @@ class RankItem extends ChangeNotifier {
                       await saveWebImage(imageBytes);
                     }
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(content: Text('Error: $e')),
                     );
                   }
@@ -361,19 +362,34 @@ class RankItem extends ChangeNotifier {
   }
 
   Future<void> saveWebImage(Uint8List imageBytes) async {
-    final Directory appDir = await getApplicationDocumentsDirectory();
-    final String fileName =
-        '${id}_${DateTime.now().millisecondsSinceEpoch}.png';
-    final String filePath = '${appDir.path}/$fileName';
+    try {
+      final Directory tempDir = await getTemporaryDirectory();
+      final String tempPath = '${tempDir.path}/${Uuid().v4()}.png';
+      final File tempFile = File(tempPath);
+      await tempFile.writeAsBytes(imageBytes);
 
-    final File imageFile = File(filePath);
-    await imageFile.writeAsBytes(imageBytes);
+      print('Temporary file saved at: $tempPath');
+      print('File size: ${await tempFile.length()} bytes');
 
-    // Use the setter to update the imagePath
-    this.imagePath = filePath;
-    print('Set new imagePath to $filePath');
-    notifyListeners();
-    onUpdate();
+      // Verify the image data
+      final Uint8List savedBytes = await tempFile.readAsBytes();
+      print('Saved image byte length: ${savedBytes.length}');
+      print('First few bytes: ${savedBytes.take(10)}');
+
+      await _cropAndProcessImage(tempPath);
+
+      // Delete the temporary file
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+
+      notifyListeners();
+      imagePathNotifier.notifyListeners();
+      //onUpdate();
+    } catch (e) {
+      print('Error saving web image: $e');
+      throw Exception('Failed to save web image: $e');
+    }
   }
 
   Future<void> showRenameDialog(BuildContext context) async {
