@@ -6,40 +6,43 @@ import 'package:image/image.dart' as img;
 // ... existing imports ...
 
 class WebViewScreenshotPage extends StatefulWidget {
+  const WebViewScreenshotPage({super.key});
   @override
-  _WebViewScreenshotPageState createState() => _WebViewScreenshotPageState();
+  WebViewScreenshotPageState createState() => WebViewScreenshotPageState();
 }
 
-class _WebViewScreenshotPageState extends State<WebViewScreenshotPage> {
+class WebViewScreenshotPageState extends State<WebViewScreenshotPage> {
   InAppWebViewController? _webViewController;
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-
     return Scaffold(
-      body: Column(
-        children: [
-          Container(
-            height: screenSize.height * 0.2,
-            color: Colors.blueGrey,
-            child: Center(
-              child: ElevatedButton(
-                onPressed: _captureAndReturnScreenshot,
-                child: Text('Screenshot'),
-              ),
-            ),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: ElevatedButton(
+          onPressed: _captureAndReturnScreenshot,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            textStyle: const TextStyle(fontSize: 16),
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.black,
           ),
-          Expanded(
-            child: InAppWebView(
-              initialUrlRequest:
-                  URLRequest(url: WebUri('https://www.google.com/images')),
-              onWebViewCreated: (controller) {
-                _webViewController = controller;
-              },
-            ),
-          ),
-        ],
+          child: const Text('Capture Image'),
+        ),
+        backgroundColor: Colors.blueGrey,
+        elevation: 0,
+        toolbarHeight: 56, // Default AppBar height
+        centerTitle: true,
+      ),
+      body: InAppWebView(
+        initialUrlRequest:
+            URLRequest(url: WebUri('https://www.google.com/images')),
+        onWebViewCreated: (controller) {
+          _webViewController = controller;
+        },
       ),
     );
   }
@@ -67,7 +70,9 @@ class _WebViewScreenshotPageState extends State<WebViewScreenshotPage> {
       print(
           'Screenshot captured and converted to PNG. Size: ${pngBytes.length} bytes');
 
-      Navigator.of(context).pop(pngBytes);
+      if (mounted) {
+        Navigator.of(context).pop(pngBytes);
+      }
     } catch (e) {
       print('Error capturing or converting screenshot: $e');
     }

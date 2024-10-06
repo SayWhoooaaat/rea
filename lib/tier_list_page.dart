@@ -39,7 +39,6 @@ class TierListPageState extends State<TierListPage>
   final List<String> tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
   List<RankItem> items = [];
 
-  late Future<void> _loadItemsFuture;
   bool _isLoading = true;
 
   final Map<RankItem, VoidCallback> itemListeners = {};
@@ -163,17 +162,16 @@ class TierListPageState extends State<TierListPage>
   void _onWebTap() async {
     final newItem = RankItem(content: '', onUpdate: _saveCustomItems);
     final scaffoldMessenger =
-        ScaffoldMessenger.of(context); // Use the current context
+        ScaffoldMessenger.of(this.context); // Use this.context
     try {
       print('Before WebPicker, mounted: $mounted');
-      final result = await Navigator.push(
-        context,
+      final result = await Navigator.of(this.context, rootNavigator: true).push(
         MaterialPageRoute(builder: (context) => WebViewScreenshotPage()),
       );
       print('After WebPicker, mounted: $mounted');
       if (result != null && result is Uint8List) {
         await newItem.saveWebImage(result);
-        print('After savewebimage, mounted: $mounted');
+        print('After saveWebImage, mounted: $mounted');
         _addItem(newItem);
       }
     } catch (e) {
@@ -188,6 +186,7 @@ class TierListPageState extends State<TierListPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    print('At Build, mounted: $mounted');
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
