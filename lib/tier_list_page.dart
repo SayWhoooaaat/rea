@@ -31,11 +31,16 @@ class TierListPage extends StatefulWidget {
   State<TierListPage> createState() => TierListPageState();
 }
 
-class TierListPageState extends State<TierListPage> {
+class TierListPageState extends State<TierListPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final List<String> tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
   List<RankItem> items = [];
 
   late Future<void> _loadItemsFuture;
+  bool _isLoading = true;
 
   final Map<RankItem, VoidCallback> itemListeners = {};
   final Map<RankItem, VoidCallback> imagePathListeners = {};
@@ -46,7 +51,13 @@ class TierListPageState extends State<TierListPage> {
   @override
   void initState() {
     super.initState();
-    _loadItemsFuture = _loadCustomItems();
+    _loadCustomItems().then((_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
   }
 
   @override
@@ -98,10 +109,11 @@ class TierListPageState extends State<TierListPage> {
 
     itemListeners[item] = itemListener;
     imagePathListeners[item] = imagePathListener;
+    items.add(item);
 
-    setState(() {
-      items.add(item);
-    });
+    if (mounted) {
+      setState(() {});
+    }
     _saveAndNotifyItemUpdate();
   }
 
@@ -148,20 +160,42 @@ class TierListPageState extends State<TierListPage> {
     }
   }
 
+  void _onWebTap() async {
+    final newItem = RankItem(content: '', onUpdate: _saveCustomItems);
+    final scaffoldMessenger =
+        ScaffoldMessenger.of(context); // Use the current context
+    try {
+      print('Before WebPicker, mounted: $mounted');
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => WebViewScreenshotPage()),
+      );
+      print('After WebPicker, mounted: $mounted');
+      if (result != null && result is Uint8List) {
+        await newItem.saveWebImage(result);
+        print('After savewebimage, mounted: $mounted');
+        _addItem(newItem);
+      }
+    } catch (e) {
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: _loadItemsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator();
-        } else {
-          return Scaffold(
-            appBar: AppBar(
-              centerTitle: true,
-              title: Text(widget.name),
-            ),
-            body: Stack(
+    super.build(context);
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: Text(widget.name),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
               children: [
                 Column(
                   children: [
@@ -178,77 +212,54 @@ class TierListPageState extends State<TierListPage> {
                 ),
               ],
             ),
-            floatingActionButton: SpeedDial(
-              icon: Icons.add,
-              activeIcon: Icons.close,
-              children: [
-                SpeedDialChild(
-                  child: const Icon(Icons.photo_library),
-                  label: 'Pick from device',
-                  onTap: () async {
-                    final newItem =
-                        RankItem(content: '', onUpdate: _saveCustomItems);
-                    try {
-                      await newItem.pickAndSetImage(ImageSource.gallery);
-                      _addItem(newItem);
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
-                    }
-                  },
-                ),
-                SpeedDialChild(
-                  child: const Icon(Icons.camera_alt),
-                  label: 'Open camera',
-                  onTap: () async {
-                    final newItem =
-                        RankItem(content: '', onUpdate: _saveCustomItems);
-                    try {
-                      await newItem.pickAndSetImage(ImageSource.camera);
-                      _addItem(newItem);
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
-                    }
-                  },
-                ),
-                SpeedDialChild(
-                  child: const Icon(Icons.search),
-                  label: 'Web image search',
-                  onTap: () async {
-                    final newItem =
-                        RankItem(content: '', onUpdate: _saveCustomItems);
-                    try {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => WebViewScreenshotPage()),
-                      );
-                      if (result != null && result is Uint8List) {
-                        await newItem.saveWebImage(result);
-                        _addItem(newItem);
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
-                    }
-                  },
-                ),
-                SpeedDialChild(
-                  child: const Icon(Icons.text_fields),
-                  label: 'Just use text',
-                  onTap: () {
-                    _showTextInputDialog(context);
-                  },
-                ),
-              ],
-            ),
-          );
-        }
-      },
+      floatingActionButton: SpeedDial(
+        icon: Icons.add,
+        activeIcon: Icons.close,
+        children: [
+          SpeedDialChild(
+            child: const Icon(Icons.photo_library),
+            label: 'Pick from device',
+            onTap: () async {
+              final newItem = RankItem(content: '', onUpdate: _saveCustomItems);
+              try {
+                await newItem.pickAndSetImage(ImageSource.gallery);
+                _addItem(newItem);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.camera_alt),
+            label: 'Open camera',
+            onTap: () async {
+              final newItem = RankItem(content: '', onUpdate: _saveCustomItems);
+              try {
+                await newItem.pickAndSetImage(ImageSource.camera);
+                _addItem(newItem);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.search),
+            label: 'Web image search',
+            onTap: _onWebTap, // doesnt need context i think(????)
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.text_fields),
+            label: 'Just use text',
+            onTap: () {
+              _showTextInputDialog(context);
+            },
+          ),
+        ],
+      ),
     );
   }
 
