@@ -12,12 +12,16 @@ class TierListPage extends StatefulWidget {
   final int index;
   final bool hidden;
   final String password;
-  const TierListPage(
-      {super.key,
-      required this.name,
-      required this.index,
-      this.hidden = false,
-      this.password = ''});
+  final VoidCallback onForceRebuild;
+
+  const TierListPage({
+    Key? key,
+    required this.name,
+    required this.index,
+    this.hidden = false,
+    this.password = '',
+    required this.onForceRebuild,
+  }) : super(key: key);
 
   Future<void> deleteAllContent() async {
     if (key is GlobalKey<TierListPageState>) {
@@ -81,7 +85,9 @@ class TierListPageState extends State<TierListPage>
     if (itemsJson != null) {
       final List<dynamic> decodedItems = json.decode(itemsJson);
       items = decodedItems
-          .map((item) => RankItem.fromJson(item, onUpdate: _saveCustomItems))
+          .map((item) => RankItem.fromJson(item,
+              onUpdate: ({bool forceRebuild = false}) =>
+                  _saveCustomItems(forceRebuild: forceRebuild)))
           .toList();
       for (var item in items) {
         VoidCallback itemListener = () => _onItemChanged(item);
@@ -109,7 +115,7 @@ class TierListPageState extends State<TierListPage>
     itemListeners[item] = itemListener;
     imagePathListeners[item] = imagePathListener;
     items.add(item);
-
+    print('Done with everything. want to update. mounted: $mounted');
     if (mounted) {
       setState(() {});
     }
@@ -124,12 +130,16 @@ class TierListPageState extends State<TierListPage>
     }
   }
 
-  Future<void> _saveCustomItems() async {
+  Future<void> _saveCustomItems({bool forceRebuild = false}) async {
+    print('Onupdate/_saveCustomItems , mounted: $mounted');
     final prefs = await SharedPreferences.getInstance();
     final String itemsJson =
         json.encode(items.map((item) => item.toJson()).toList());
     await prefs.setString(_storageKey, itemsJson);
     print('Items saved: $itemsJson');
+    if (forceRebuild) {
+      widget.onForceRebuild(); // Only call this when forceRebuild is true
+    }
   }
 
   void sortRankItemsByIntertier(List<RankItem> items) {
@@ -160,7 +170,10 @@ class TierListPageState extends State<TierListPage>
   }
 
   void _onWebTap() async {
-    final newItem = RankItem(content: '', onUpdate: _saveCustomItems);
+    final newItem = RankItem(
+        content: '',
+        onUpdate: ({bool forceRebuild = false}) =>
+            _saveCustomItems(forceRebuild: forceRebuild));
     final scaffoldMessenger =
         ScaffoldMessenger.of(this.context); // Use this.context
     try {
@@ -173,6 +186,9 @@ class TierListPageState extends State<TierListPage>
         await newItem.saveWebImage(result);
         print('After saveWebImage, mounted: $mounted');
         _addItem(newItem);
+        print('Before rebuild, mounted: $mounted');
+        widget.onForceRebuild();
+        print('After rebuild, mounted: $mounted');
       }
     } catch (e) {
       if (mounted) {
@@ -219,7 +235,10 @@ class TierListPageState extends State<TierListPage>
             child: const Icon(Icons.photo_library),
             label: 'Pick from device',
             onTap: () async {
-              final newItem = RankItem(content: '', onUpdate: _saveCustomItems);
+              final newItem = RankItem(
+                  content: '',
+                  onUpdate: ({bool forceRebuild = false}) =>
+                      _saveCustomItems(forceRebuild: forceRebuild));
               try {
                 await newItem.pickAndSetImage(ImageSource.gallery);
                 _addItem(newItem);
@@ -234,7 +253,10 @@ class TierListPageState extends State<TierListPage>
             child: const Icon(Icons.camera_alt),
             label: 'Open camera',
             onTap: () async {
-              final newItem = RankItem(content: '', onUpdate: _saveCustomItems);
+              final newItem = RankItem(
+                  content: '',
+                  onUpdate: ({bool forceRebuild = false}) =>
+                      _saveCustomItems(forceRebuild: forceRebuild));
               try {
                 await newItem.pickAndSetImage(ImageSource.camera);
                 _addItem(newItem);
@@ -484,7 +506,10 @@ class TierListPageState extends State<TierListPage>
   }
 
   void _addCustomTextBox(String text) {
-    final newItem = RankItem(content: text, onUpdate: _saveCustomItems);
+    final newItem = RankItem(
+        content: '',
+        onUpdate: ({bool forceRebuild = false}) =>
+            _saveCustomItems(forceRebuild: forceRebuild));
     _addItem(newItem);
   }
 
@@ -503,6 +528,6 @@ class TierListPageState extends State<TierListPage>
   // Add this method to save items whenever they are updated
   void _saveAndNotifyItemUpdate() {
     _saveCustomItems();
-    setState(() {}); // Trigger a rebuild to reflect changes
+    if (mounted) setState(() {}); // Trigger a rebuild to reflect changes
   }
 }

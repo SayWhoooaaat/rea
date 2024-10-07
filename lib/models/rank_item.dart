@@ -17,7 +17,7 @@ class RankItem extends ChangeNotifier {
   ValueNotifier<String?> imagePathNotifier;
   String? tier;
   int? intertier;
-  final Function() onUpdate;
+  final Function({bool forceRebuild}) onUpdate;
 
   RankItem({
     required this.content,
@@ -44,9 +44,14 @@ class RankItem extends ChangeNotifier {
     }
   }
 
+  void _notifyUpdate({bool forceRebuild = false}) {
+    onUpdate(forceRebuild: forceRebuild);
+    notifyListeners();
+  }
+
   // Factory constructor to create a RankItem from JSON
   factory RankItem.fromJson(Map<String, dynamic> json,
-      {required Function() onUpdate}) {
+      {required Function({bool forceRebuild}) onUpdate}) {
     return RankItem(
       content: json['content'],
       imagePath: json['imagePath'],
@@ -292,7 +297,7 @@ class RankItem extends ChangeNotifier {
   void rename(String newName) {
     content = newName;
     notifyListeners();
-    onUpdate();
+    _notifyUpdate();
   }
 
   Future<void> showImageSourceDialog(BuildContext context) async {
@@ -385,7 +390,7 @@ class RankItem extends ChangeNotifier {
 
       notifyListeners();
       imagePathNotifier.notifyListeners();
-      onUpdate();
+      onUpdate(forceRebuild: true);
     } catch (e) {
       print('Error saving web image: $e');
       throw Exception('Failed to save web image: $e');

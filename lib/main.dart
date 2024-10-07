@@ -3,6 +3,7 @@ import 'tier_list_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'debug_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -43,6 +44,41 @@ class _MyHomePageState extends State<MyHomePage> {
   final FocusNode _searchFocusNode = FocusNode();
   final TextEditingController _searchController = TextEditingController();
 
+  void _openDebugPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => DebugPage()),
+    );
+  }
+
+  void _forceRebuild(int index) {
+    // Find the tier list data
+    final tierListData = _tierLists.firstWhere((tl) => tl['index'] == index);
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _buildTierListPage(tierListData),
+        settings: RouteSettings(arguments: index),
+      ),
+    );
+
+    // Rebuild the page in the _tierListPages map
+    //setState(() {
+    //  _tierListPages[index] = _buildTierListPage(tierListData);
+    //});
+  }
+
+  TierListPage _buildTierListPage(Map<String, dynamic> tierListData) {
+    return TierListPage(
+      key: ValueKey(tierListData['index']),
+      name: tierListData['name'],
+      index: tierListData['index'],
+      hidden: tierListData['hidden'] ?? false,
+      password: tierListData['password'] ?? tierListData['name'],
+      onForceRebuild: () => _forceRebuild(tierListData['index']),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -74,12 +110,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _tierLists = List<Map<String, dynamic>>.from(
           json.decode(_prefs.getString('tierLists') ?? '[]'));
       for (var tierList in _tierLists) {
-        _tierListPages[tierList['index']] = TierListPage(
-          name: tierList['name'],
-          index: tierList['index'],
-          hidden: tierList['hidden'] ?? false,
-          password: tierList['password'] ?? tierList['name'],
-        );
+        _tierListPages[tierList['index']] = _buildTierListPage(tierList);
       }
     });
   }
@@ -123,18 +154,14 @@ class _MyHomePageState extends State<MyHomePage> {
     if (newTierListName != null && newTierListName.isNotEmpty) {
       setState(() {
         int newIndex = _tierLists.isEmpty ? 0 : _tierLists.last['index'] + 1;
-        _tierLists.add({
+        Map<String, dynamic> newTierList = {
           'name': newTierListName,
           'index': newIndex,
           'hidden': false,
           'password': newTierListName,
-        });
-        _tierListPages[newIndex] = TierListPage(
-          name: newTierListName,
-          index: newIndex,
-          hidden: false,
-          password: newTierListName,
-        );
+        };
+        _tierLists.add(newTierList);
+        _tierListPages[newIndex] = _buildTierListPage(newTierList);
       });
       await _saveTierLists();
     }
@@ -270,12 +297,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _tierLists[index]['password'] = newPassword;
       }
 
-      _tierListPages[tierListIndex] = TierListPage(
-        name: _tierLists[index]['name'],
-        index: tierListIndex,
-        hidden: _tierLists[index]['hidden'],
-        password: _tierLists[index]['password'],
-      );
+      _tierListPages[tierListIndex] = _buildTierListPage(_tierLists[index]);
     });
     await _saveTierLists();
   }
@@ -316,10 +338,8 @@ class _MyHomePageState extends State<MyHomePage> {
     if (newName != null && newName.isNotEmpty) {
       setState(() {
         _tierLists[index]['name'] = newName;
-        _tierListPages[_tierLists[index]['index']] = TierListPage(
-          name: newName,
-          index: _tierLists[index]['index'],
-        );
+        _tierListPages[_tierLists[index]['index']] =
+            _buildTierListPage(_tierLists[index]);
       });
       await _saveTierLists();
     }
@@ -414,6 +434,13 @@ class _MyHomePageState extends State<MyHomePage> {
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: Center(child: Text(widget.title)),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              onPressed: _openDebugPage,
+              tooltip: 'Open Debug Page',
+            ),
+          ],
         ),
         body: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
