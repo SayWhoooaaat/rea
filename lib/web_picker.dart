@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:image/image.dart' as img;
 
-// ... existing imports ...
-
 class WebViewScreenshotPage extends StatefulWidget {
   const WebViewScreenshotPage({super.key});
   @override
@@ -13,6 +11,11 @@ class WebViewScreenshotPage extends StatefulWidget {
 
 class WebViewScreenshotPageState extends State<WebViewScreenshotPage> {
   InAppWebViewController? _webViewController;
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +43,17 @@ class WebViewScreenshotPageState extends State<WebViewScreenshotPage> {
       body: InAppWebView(
         initialUrlRequest:
             URLRequest(url: WebUri('https://www.google.com/images')),
-        onWebViewCreated: (controller) {
+        initialSettings: InAppWebViewSettings(
+          forceDark: ForceDark.ON,
+          forceDarkStrategy: ForceDarkStrategy.WEB_THEME_DARKENING_ONLY,
+          useHybridComposition: true,
+          domStorageEnabled: false, // Controlling search history!
+          cacheEnabled: false, // NOT controlling search history
+        ),
+        onWebViewCreated: (controller) async {
           _webViewController = controller;
+          await InAppWebViewController.clearAllCache();
+          _webViewController?.clearHistory(); // NOT controlling search history
         },
       ),
     );
