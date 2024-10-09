@@ -210,7 +210,7 @@ class RankItem extends ChangeNotifier {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Image',
-            toolbarColor: const Color.fromARGB(255, 62, 49, 34),
+            toolbarColor: const Color.fromARGB(255, 51, 45, 38),
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'debug_page.dart';
+import 'themes/material_theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,13 +17,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Rank Everything Always',
-      theme: ThemeData.dark(useMaterial3: true).copyWith(
-        colorScheme: ColorScheme.dark(
-          primary: Colors.grey[700]!, // buttons n shit
-          inversePrimary: Colors.grey[800]!, // appbar
-        ),
-        scaffoldBackgroundColor: Colors.grey[900]!, // background?
-      ),
+      theme: MaterialTheme.dark(),
       home: const MyHomePage(title: 'Rank Everything Always'),
     );
   }
@@ -432,7 +427,7 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: Center(child: Text(widget.title)),
           actions: [
             IconButton(
@@ -459,7 +454,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[800],
+                      //fillColor: Theme.of(context).colorScheme.inversePrimary,
                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
                       isDense: true,
                     ),
@@ -499,20 +494,23 @@ class _MyHomePageState extends State<MyHomePage> {
                           _tierLists.indexWhere(
                               (item) => item['index'] == tierList['index'])),
                       child: Container(
-                        color: Colors.grey[800],
+                        color: Theme.of(context).colorScheme.inversePrimary,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.view_list,
                               size: 50,
-                              color: Colors.brown,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             const SizedBox(height: 8),
                             Text(
                               tierList['name'],
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer),
                             ),
                           ],
                         ),

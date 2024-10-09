@@ -30,12 +30,12 @@ class WebViewScreenshotPageState extends State<WebViewScreenshotPage> {
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             textStyle: const TextStyle(fontSize: 16),
-            foregroundColor: Colors.white,
-            backgroundColor: Colors.black,
+            foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
           ),
           child: const Text('Capture Image'),
         ),
-        backgroundColor: Colors.blueGrey,
+        backgroundColor: Theme.of(context).colorScheme.surfaceBright,
         elevation: 0,
         toolbarHeight: 56, // Default AppBar height
         centerTitle: true,

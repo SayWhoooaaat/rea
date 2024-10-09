@@ -308,7 +308,7 @@ class TierListPageState extends State<TierListPage>
             child: DragTarget<RankItem>(
               builder: (context, candidateData, rejectedData) {
                 return Container(
-                  color: Colors.grey[800],
+                  color: Theme.of(context).colorScheme.surfaceBright,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: items.where((item) => item.tier == tier).length,
@@ -341,7 +341,9 @@ class TierListPageState extends State<TierListPage>
       builder: (context, candidateData, rejectedData) {
         return Container(
           height: itemSize + 16,
-          color: candidateData.isNotEmpty ? Colors.grey[700] : Colors.grey[900],
+          color: candidateData.isNotEmpty
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surfaceBright,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: items.where((item) => item.tier == null).length,
@@ -507,7 +509,7 @@ class TierListPageState extends State<TierListPage>
 
   void _addCustomTextBox(String text) {
     final newItem = RankItem(
-        content: '',
+        content: text,
         onUpdate: ({bool forceRebuild = false}) =>
             _saveCustomItems(forceRebuild: forceRebuild));
     _addItem(newItem);
