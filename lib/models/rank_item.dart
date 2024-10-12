@@ -34,10 +34,8 @@ class RankItem extends ChangeNotifier {
   set imagePath(String? value) {
     print('Setter called with value: $value');
     if (imagePathNotifier.value != value) {
-      print('Updating imagePath from ${imagePathNotifier.value} to $value');
       imagePathNotifier.value = value;
       notifyListeners();
-      imagePathNotifier.notifyListeners();
       onUpdate();
     } else {
       print('imagePath unchanged');

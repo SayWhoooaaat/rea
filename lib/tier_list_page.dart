@@ -57,9 +57,6 @@ class TierListPageState extends State<TierListPage>
 
   bool _isLoading = true;
 
-  final Map<RankItem, VoidCallback> itemListeners = {};
-  final Map<RankItem, VoidCallback> imagePathListeners = {};
-
   // Add this constant at the top of the class
   static const double itemSize = 70.0;
 
@@ -77,14 +74,6 @@ class TierListPageState extends State<TierListPage>
 
   @override
   void dispose() {
-    for (var item in items) {
-      if (itemListeners.containsKey(item)) {
-        item.removeListener(itemListeners[item]!);
-      }
-      if (imagePathListeners.containsKey(item)) {
-        item.imagePathNotifier.removeListener(imagePathListeners[item]!);
-      }
-    }
     super.dispose();
   }
 
@@ -101,16 +90,6 @@ class TierListPageState extends State<TierListPage>
               onUpdate: ({bool forceRebuild = false}) =>
                   _saveCustomItems(forceRebuild: forceRebuild)))
           .toList();
-      for (var item in items) {
-        VoidCallback itemListener = () => _onItemChanged(item);
-        VoidCallback imagePathListener = () => _onItemChanged(item);
-
-        item.addListener(itemListener);
-        item.imagePathNotifier.addListener(imagePathListener);
-
-        itemListeners[item] = itemListener;
-        imagePathListeners[item] = imagePathListener;
-      }
     } else {
       items = [];
     }
@@ -118,28 +97,12 @@ class TierListPageState extends State<TierListPage>
   }
 
   void _addItem(RankItem item) {
-    VoidCallback itemListener = () => _onItemChanged(item);
-    VoidCallback imagePathListener = () => _onItemChanged(item);
-
-    item.addListener(itemListener);
-    item.imagePathNotifier.addListener(imagePathListener);
-
-    itemListeners[item] = itemListener;
-    imagePathListeners[item] = imagePathListener;
     items.add(item);
     print('Done with everything. want to update. mounted: $mounted');
     if (mounted) {
       setState(() {});
     }
     _saveAndNotifyItemUpdate();
-  }
-
-  void _onItemChanged(RankItem item) {
-    print('Item changed: ${item.content}, Image: ${item.imagePath}');
-    _saveCustomItems();
-    if (mounted) {
-      setState(() {});
-    }
   }
 
   Future<void> _saveCustomItems({bool forceRebuild = false}) async {
@@ -443,8 +406,10 @@ class TierListPageState extends State<TierListPage>
               item.showItemOptions(
                 context,
                 () {
-                  _onItemChanged(item);
                   _saveCustomItems(); // Add this line
+                  if (mounted) {
+                    setState(() {});
+                  }
                 },
                 () {
                   setState(() {
