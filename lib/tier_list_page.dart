@@ -23,12 +23,24 @@ class TierListPage extends StatefulWidget {
     required this.onForceRebuild,
   }) : super(key: key);
 
-  Future<void> deleteAllContent() async {
-    if (key is GlobalKey<TierListPageState>) {
-      await (key as GlobalKey<TierListPageState>)
-          .currentState
-          ?.deleteAllContent();
+  static Future<void> deleteAllContentStatic(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? itemsJson = prefs.getString('customItems_$index');
+
+    if (itemsJson != null) {
+      final List<dynamic> decodedItems = json.decode(itemsJson);
+      final items = decodedItems
+          .map((item) => RankItem.fromJson(item,
+              onUpdate: ({bool forceRebuild = false}) => {}))
+          .toList();
+
+      for (var item in items) {
+        await item.deleteAssociatedFiles();
+      }
     }
+
+    await prefs.remove('customItems_$index');
+    await prefs.remove('customItems_${index}_ranked');
   }
 
   @override
@@ -207,6 +219,21 @@ class TierListPageState extends State<TierListPage>
       appBar: AppBar(
         centerTitle: true,
         title: Text(widget.name),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'delete_all') {
+                _showDeleteAllConfirmationDialog();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'delete_all',
+                child: Text('Delete All'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -515,8 +542,6 @@ class TierListPageState extends State<TierListPage>
     _addItem(newItem);
   }
 
-  // Remove the _deleteItem method as it's no longer needed
-
   Future<void> deleteAllContent() async {
     for (var item in items) {
       await item.deleteAssociatedFiles();
@@ -531,5 +556,39 @@ class TierListPageState extends State<TierListPage>
   void _saveAndNotifyItemUpdate() {
     _saveCustomItems();
     if (mounted) setState(() {}); // Trigger a rebuild to reflect changes
+  }
+
+  void _showDeleteAllConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete All Content'),
+          content: const Text(
+              'Are you sure you want to delete all content? This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Delete'),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await deleteAllContent();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('All content has been deleted')),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 }

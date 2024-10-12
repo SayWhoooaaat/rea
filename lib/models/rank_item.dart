@@ -219,9 +219,9 @@ class RankItem extends ChangeNotifier {
             title: 'Crop Image',
           ),
         ],
-        compressQuality: 70, // Add this line
-        maxWidth: 1000, // Add this line
-        maxHeight: 1000, // Add this line
+        compressQuality: 70,
+        maxWidth: 1000,
+        maxHeight: 1000,
       );
 
       if (croppedFile != null) {

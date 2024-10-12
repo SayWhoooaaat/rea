@@ -56,11 +56,6 @@ class _MyHomePageState extends State<MyHomePage> {
         settings: RouteSettings(arguments: index),
       ),
     );
-
-    // Rebuild the page in the _tierListPages map
-    //setState(() {
-    //  _tierListPages[index] = _buildTierListPage(tierListData);
-    //});
   }
 
   TierListPage _buildTierListPage(Map<String, dynamic> tierListData) {
@@ -366,7 +361,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (confirmDelete) {
       int deletedIndex = _tierLists[index]['index'];
-      await _tierListPages[deletedIndex]?.deleteAllContent();
+      await TierListPage.deleteAllContentStatic(deletedIndex);
       // Clear SharedPreferences data for the deleted tier list
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('customItems_$deletedIndex');
@@ -454,7 +449,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      //fillColor: Theme.of(context).colorScheme.inversePrimary,
+                      fillColor: Theme.of(context).colorScheme.inversePrimary,
                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
                       isDense: true,
                     ),
