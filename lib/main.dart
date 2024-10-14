@@ -5,6 +5,11 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'debug_page.dart';
 import 'themes/material_theme.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:archive/archive.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+//import 'models/rank_item.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,6 +39,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   List<Map<String, dynamic>> _tierLists = [];
   final Map<int, TierListPage> _tierListPages = {};
+  final Map<int, GlobalKey<TierListPageState>> _tierListKeys = {};
   late SharedPreferences _prefs;
   String _searchQuery = '';
   final FocusNode _searchFocusNode = FocusNode();
@@ -59,8 +65,10 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   TierListPage _buildTierListPage(Map<String, dynamic> tierListData) {
+    final key = GlobalKey<TierListPageState>();
+    _tierListKeys[tierListData['index']] = key;
     return TierListPage(
-      key: ValueKey(tierListData['index']),
+      key: key,
       name: tierListData['name'],
       index: tierListData['index'],
       hidden: tierListData['hidden'] ?? false,
@@ -165,7 +173,7 @@ class _MyHomePageState extends State<MyHomePage> {
       builder: (BuildContext context) {
         bool isHidden = _tierLists[index]['hidden'] ?? false;
         return AlertDialog(
-          title: Text('Options for ${_tierLists[index]['name']}'),
+          title: Text(_tierLists[index]['name']),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -175,6 +183,14 @@ class _MyHomePageState extends State<MyHomePage> {
                 onTap: () {
                   Navigator.pop(context);
                   _renameTierList(index);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.image),
+                title: const Text('Set Cover Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _setCoverPhoto(index);
                 },
               ),
               ListTile(
@@ -422,13 +438,36 @@ class _MyHomePageState extends State<MyHomePage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: Center(child: Text(widget.title)),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.bug_report),
-              onPressed: _openDebugPage,
-              tooltip: 'Open Debug Page',
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                switch (value) {
+                  case 'debug':
+                    _openDebugPage();
+                    break;
+                  case 'export':
+                    _exportData();
+                    break;
+                  case 'import':
+                    _importData();
+                    break;
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'debug',
+                  child: Text('Open Debug Page'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'export',
+                  child: Text('Export Data'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'import',
+                  child: Text('Import Data'),
+                ),
+              ],
             ),
           ],
         ),
@@ -493,19 +532,28 @@ class _MyHomePageState extends State<MyHomePage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.view_list,
-                              size: 50,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                            tierList['coverPhoto'] != null
+                                ? Image.file(
+                                    File(tierList['coverPhoto']),
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Icon(
+                                    Icons.view_list,
+                                    size: 50,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
                             const SizedBox(height: 8),
                             Text(
                               tierList['name'],
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onPrimaryContainer),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer,
+                              ),
                             ),
                           ],
                         ),
@@ -528,5 +576,184 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
     );
+  }
+
+  void _setCoverPhoto(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedIndex = _tierLists[index]['index'];
+    String? itemsJson = prefs.getString('customItems_$savedIndex');
+    List<String> imagePaths = [];
+    if (itemsJson != null) {
+      List<dynamic> decodedItems = json.decode(itemsJson);
+      imagePaths = decodedItems
+          .where((item) =>
+              item['imagePath'] != null) // Check for non-null imagePath
+          .map((item) =>
+              item['imagePath'] as String) // Directly extract imagePath
+          .toList();
+    } else {
+      print("No items found");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No images here.')),
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Cover Photo'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
+              ),
+              itemCount: imagePaths.length,
+              itemBuilder: (context, itemIndex) {
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _updateCoverPhoto(index, imagePaths[itemIndex]);
+                  },
+                  child: Image.file(
+                    File(imagePaths[itemIndex]),
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _updateCoverPhoto(int index, String imagePath) async {
+    setState(() {
+      _tierLists[index]['coverPhoto'] = imagePath;
+    });
+    await _saveTierLists();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cover photo updated')),
+    );
+  }
+
+  Future<void> _exportData() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final zipFile = File('${directory.path}/tier_list_data.zip');
+      final archive = Archive();
+
+      // Add tier lists data
+      final tierListsJson = json.encode(_tierLists);
+      archive.addFile(ArchiveFile(
+          'tier_lists.json', tierListsJson.length, tierListsJson.codeUnits));
+
+      // Add custom items data for each tier list
+      for (var tierList in _tierLists) {
+        final index = tierList['index'];
+        final customItems = await _getCustomItems(index);
+        final customItemsJson = json.encode(customItems);
+        archive.addFile(ArchiveFile('custom_items_$index.json',
+            customItemsJson.length, customItemsJson.codeUnits));
+
+        final rankedItems = await _getRankedItems(index);
+        final rankedItemsJson = json.encode(rankedItems);
+        archive.addFile(ArchiveFile('ranked_items_$index.json',
+            rankedItemsJson.length, rankedItemsJson.codeUnits));
+      }
+
+      // Encode the archive to zip file
+      final zipData = ZipEncoder().encode(archive);
+      if (zipData != null) {
+        await zipFile.writeAsBytes(zipData);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Data exported to ${zipFile.path}')),
+        );
+      } else {
+        throw Exception('Failed to encode zip file');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to export data: $e')),
+      );
+    }
+  }
+
+  Future<void> _importData() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+      );
+
+      if (result != null) {
+        final file = File(result.files.single.path!);
+        final bytes = await file.readAsBytes();
+        final archive = ZipDecoder().decodeBytes(bytes);
+
+        // Clear existing data
+        _tierLists.clear();
+        _tierListPages.clear();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
+
+        // Import tier lists data
+        final tierListsFile = archive.findFile('tier_lists.json');
+        if (tierListsFile != null) {
+          final tierListsJson = String.fromCharCodes(tierListsFile.content);
+          _tierLists =
+              List<Map<String, dynamic>>.from(json.decode(tierListsJson));
+          await _saveTierLists();
+        }
+
+        // Import custom items data for each tier list
+        for (var tierList in _tierLists) {
+          final index = tierList['index'];
+          final customItemsFile = archive.findFile('custom_items_$index.json');
+          if (customItemsFile != null) {
+            final customItemsJson =
+                String.fromCharCodes(customItemsFile.content);
+            await prefs.setString('customItems_$index', customItemsJson);
+          }
+
+          final rankedItemsFile = archive.findFile('ranked_items_$index.json');
+          if (rankedItemsFile != null) {
+            final rankedItemsJson =
+                String.fromCharCodes(rankedItemsFile.content);
+            await prefs.setString(
+                'customItems_${index}_ranked', rankedItemsJson);
+          }
+
+          _tierListPages[index] = _buildTierListPage(tierList);
+        }
+
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data imported successfully')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to import data: $e')),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _getCustomItems(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    final customItemsJson = prefs.getString('customItems_$index') ?? '[]';
+    return List<Map<String, dynamic>>.from(json.decode(customItemsJson));
+  }
+
+  Future<List<Map<String, dynamic>>> _getRankedItems(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    final rankedItemsJson =
+        prefs.getString('customItems_${index}_ranked') ?? '[]';
+    return List<Map<String, dynamic>>.from(json.decode(rankedItemsJson));
   }
 }

@@ -15,7 +15,7 @@ class TierListPage extends StatefulWidget {
   final VoidCallback onForceRebuild;
 
   const TierListPage({
-    Key? key,
+    required GlobalKey<TierListPageState> key,
     required this.name,
     required this.index,
     this.hidden = false,
