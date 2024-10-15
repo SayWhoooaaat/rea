@@ -9,7 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-//import 'models/rank_item.dart';
+import 'package:share_plus/share_plus.dart';
 
 void main() {
   runApp(const MyApp());
@@ -74,7 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
       hidden: tierListData['hidden'] ?? false,
       password: tierListData['password'] ?? tierListData['name'],
       onForceRebuild: () => _forceRebuild(tierListData['index']),
-    );
+    ); // Should also have imagePath?
   }
 
   @override
@@ -157,6 +157,7 @@ class _MyHomePageState extends State<MyHomePage> {
           'index': newIndex,
           'hidden': false,
           'password': newTierListName,
+          'coverPhoto': null,
         };
         _tierLists.add(newTierList);
         _tierListPages[newIndex] = _buildTierListPage(newTierList);
@@ -381,7 +382,6 @@ class _MyHomePageState extends State<MyHomePage> {
       // Clear SharedPreferences data for the deleted tier list
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('customItems_$deletedIndex');
-      await prefs.remove('customItems_${deletedIndex}_ranked');
 
       setState(() {
         _tierLists.removeAt(index);
@@ -602,28 +602,47 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Select Cover Photo'),
+          title: const Text('Select Cover Image'),
           content: SizedBox(
             width: double.maxFinite,
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 4,
-                mainAxisSpacing: 4,
-              ),
-              itemCount: imagePaths.length,
-              itemBuilder: (context, itemIndex) {
-                return GestureDetector(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.list),
+                  title: const Text('No Image'),
                   onTap: () {
                     Navigator.pop(context);
-                    _updateCoverPhoto(index, imagePaths[itemIndex]);
+                    setState(() {
+                      _tierLists[index]['coverPhoto'] = null;
+                    });
                   },
-                  child: Image.file(
-                    File(imagePaths[itemIndex]),
-                    fit: BoxFit.cover,
+                ),
+                const Divider(),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 4,
+                      mainAxisSpacing: 4,
+                    ),
+                    itemCount: imagePaths.length,
+                    itemBuilder: (context, itemIndex) {
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _updateCoverPhoto(index, imagePaths[itemIndex]);
+                        },
+                        child: Image.file(
+                          File(imagePaths[itemIndex]),
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+              ],
             ),
           ),
         );
@@ -643,7 +662,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _exportData() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await getExternalStorageDirectory();
+      if (directory == null) {
+        throw Exception('Unable to access external storage');
+      }
       final zipFile = File('${directory.path}/tier_list_data.zip');
       final archive = Archive();
 
@@ -659,17 +681,15 @@ class _MyHomePageState extends State<MyHomePage> {
         final customItemsJson = json.encode(customItems);
         archive.addFile(ArchiveFile('custom_items_$index.json',
             customItemsJson.length, customItemsJson.codeUnits));
-
-        final rankedItems = await _getRankedItems(index);
-        final rankedItemsJson = json.encode(rankedItems);
-        archive.addFile(ArchiveFile('ranked_items_$index.json',
-            rankedItemsJson.length, rankedItemsJson.codeUnits));
       }
 
       // Encode the archive to zip file
       final zipData = ZipEncoder().encode(archive);
       if (zipData != null) {
         await zipFile.writeAsBytes(zipData);
+        // Share the file (not working)
+        await Share.shareXFiles([XFile(zipFile.path)],
+            text: 'Here is your exported tier list data');
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Data exported to ${zipFile.path}')),
@@ -721,14 +741,6 @@ class _MyHomePageState extends State<MyHomePage> {
             await prefs.setString('customItems_$index', customItemsJson);
           }
 
-          final rankedItemsFile = archive.findFile('ranked_items_$index.json');
-          if (rankedItemsFile != null) {
-            final rankedItemsJson =
-                String.fromCharCodes(rankedItemsFile.content);
-            await prefs.setString(
-                'customItems_${index}_ranked', rankedItemsJson);
-          }
-
           _tierListPages[index] = _buildTierListPage(tierList);
         }
 
@@ -748,12 +760,5 @@ class _MyHomePageState extends State<MyHomePage> {
     final prefs = await SharedPreferences.getInstance();
     final customItemsJson = prefs.getString('customItems_$index') ?? '[]';
     return List<Map<String, dynamic>>.from(json.decode(customItemsJson));
-  }
-
-  Future<List<Map<String, dynamic>>> _getRankedItems(int index) async {
-    final prefs = await SharedPreferences.getInstance();
-    final rankedItemsJson =
-        prefs.getString('customItems_${index}_ranked') ?? '[]';
-    return List<Map<String, dynamic>>.from(json.decode(rankedItemsJson));
   }
 }

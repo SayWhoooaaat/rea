@@ -38,9 +38,7 @@ class TierListPage extends StatefulWidget {
         await item.deleteAssociatedFiles();
       }
     }
-
     await prefs.remove('customItems_$index');
-    await prefs.remove('customItems_${index}_ranked');
   }
 
   @override
