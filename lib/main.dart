@@ -662,11 +662,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _exportData() async {
     try {
-      final directory = await getExternalStorageDirectory();
-      if (directory == null) {
-        throw Exception('Unable to access external storage');
-      }
-      final zipFile = File('${directory.path}/tier_list_data.zip');
+      final tempDir = await getTemporaryDirectory();
+      final zipFile = File(
+          '${tempDir.path}/tier_list_data_${DateTime.now().millisecondsSinceEpoch}.zip');
       final archive = Archive();
 
       // Add tier lists data
@@ -691,9 +689,8 @@ class _MyHomePageState extends State<MyHomePage> {
         await Share.shareXFiles([XFile(zipFile.path)],
             text: 'Here is your exported tier list data');
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Data exported to ${zipFile.path}')),
-        );
+        // Delete the temporary file after sharing
+        await zipFile.delete();
       } else {
         throw Exception('Failed to encode zip file');
       }
