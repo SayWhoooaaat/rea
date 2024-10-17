@@ -687,7 +687,7 @@ class _MyHomePageState extends State<MyHomePage> {
       final zipData = ZipEncoder().encode(archive);
       if (zipData != null) {
         await zipFile.writeAsBytes(zipData);
-        // Share the file (not working)
+        // Share the file
         await Share.shareXFiles([XFile(zipFile.path)],
             text: 'Here is your exported tier list data');
 
