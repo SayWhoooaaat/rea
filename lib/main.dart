@@ -10,6 +10,7 @@ import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
+import 'package:path/path.dart' as path;
 
 void main() {
   runApp(const MyApp());
@@ -672,6 +673,9 @@ class _MyHomePageState extends State<MyHomePage> {
       archive.addFile(ArchiveFile(
           'tier_lists.json', tierListsJson.length, tierListsJson.codeUnits));
 
+      // Set to keep track of unique image paths
+      final Set<String> uniqueImagePaths = {};
+
       // Add custom items data for each tier list
       for (var tierList in _tierLists) {
         final index = tierList['index'];
@@ -679,6 +683,28 @@ class _MyHomePageState extends State<MyHomePage> {
         final customItemsJson = json.encode(customItems);
         archive.addFile(ArchiveFile('custom_items_$index.json',
             customItemsJson.length, customItemsJson.codeUnits));
+
+        // Add cover photo path if exists
+        if (tierList['coverPhoto'] != null) {
+          uniqueImagePaths.add(tierList['coverPhoto']);
+        }
+
+        // Add image paths from custom items
+        for (var item in customItems) {
+          if (item['imagePath'] != null) {
+            uniqueImagePaths.add(item['imagePath']);
+          }
+        }
+      }
+
+      // Add image files to the archive
+      for (var imagePath in uniqueImagePaths) {
+        final imageFile = File(imagePath);
+        if (await imageFile.exists()) {
+          final imageBytes = await imageFile.readAsBytes();
+          final fileName = 'images/${path.basename(imagePath)}';
+          archive.addFile(ArchiveFile(fileName, imageBytes.length, imageBytes));
+        }
       }
 
       // Encode the archive to zip file
