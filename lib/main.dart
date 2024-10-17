@@ -745,12 +745,38 @@ class _MyHomePageState extends State<MyHomePage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.clear();
 
+        // Get app's local directory for storing images
+        final appDir = await getApplicationDocumentsDirectory();
+        final imagesDir = Directory('${appDir.path}/imported_images');
+        if (await imagesDir.exists()) {
+          await imagesDir.delete(recursive: true);
+        }
+        await imagesDir.create(recursive: true);
+
+        // Extract and save images
+        for (final file in archive.files) {
+          if (file.isFile && file.name.startsWith('images/')) {
+            final newPath = '${imagesDir.path}/${path.basename(file.name)}';
+            await File(newPath).writeAsBytes(file.content);
+          }
+        }
+
         // Import tier lists data
         final tierListsFile = archive.findFile('tier_lists.json');
         if (tierListsFile != null) {
           final tierListsJson = String.fromCharCodes(tierListsFile.content);
           _tierLists =
               List<Map<String, dynamic>>.from(json.decode(tierListsJson));
+
+          // Update image paths in tier lists
+          for (var tierList in _tierLists) {
+            if (tierList['coverPhoto'] != null) {
+              final oldPath = tierList['coverPhoto'];
+              final newPath = '${imagesDir.path}/${path.basename(oldPath)}';
+              tierList['coverPhoto'] = newPath;
+            }
+          }
+
           await _saveTierLists();
         }
 
@@ -761,7 +787,20 @@ class _MyHomePageState extends State<MyHomePage> {
           if (customItemsFile != null) {
             final customItemsJson =
                 String.fromCharCodes(customItemsFile.content);
-            await prefs.setString('customItems_$index', customItemsJson);
+            List<Map<String, dynamic>> customItems =
+                List<Map<String, dynamic>>.from(json.decode(customItemsJson));
+
+            // Update image paths in custom items
+            for (var item in customItems) {
+              if (item['imagePath'] != null) {
+                final oldPath = item['imagePath'];
+                final newPath = '${imagesDir.path}/${path.basename(oldPath)}';
+                item['imagePath'] = newPath;
+              }
+            }
+
+            await prefs.setString(
+                'customItems_$index', json.encode(customItems));
           }
 
           _tierListPages[index] = _buildTierListPage(tierList);
