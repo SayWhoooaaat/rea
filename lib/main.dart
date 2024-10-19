@@ -463,11 +463,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   case 'debug':
                     _openDebugPage();
                     break;
-                  case 'export':
-                    _exportData();
+                  case 'backup':
+                    _showBackupExplanation();
                     break;
-                  case 'import':
-                    _importData();
+                  case 'restore':
+                    _showRestoreExplanation();
                     break;
                 }
               },
@@ -477,12 +477,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: Text('Open Debug Page'),
                 ),
                 const PopupMenuItem<String>(
-                  value: 'export',
-                  child: Text('Export Data'),
+                  value: 'backup',
+                  child: Text('Backup My Tier Lists'),
                 ),
                 const PopupMenuItem<String>(
-                  value: 'import',
-                  child: Text('Import Data'),
+                  value: 'restore',
+                  child: Text('Restore My Tier Lists'),
                 ),
               ],
             ),
@@ -689,11 +689,103 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  void _showBackupExplanation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Backup My Tier Lists'),
+          content: const Text(
+              'This will create a backup file of all your tier lists and images. '
+              'You can use this file to restore your data on another device or if you need to reinstall the app.\n\n'
+              'This has to be done manually by you since this app is free and cannot rely on servers that cost money.'),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'Cancel',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: Text(
+                'Create Backup',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _exportData();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRestoreExplanation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Restore My Tier Lists'),
+          content: const Text(
+              'This will restore your tier lists from a backup file. '
+              'Use this when you\'re setting up the app on a new device.\n'
+              'This has to be done manually by you since this app is free and cannot rely on servers that cost money.\n\n'
+              'Look for a file called REA_123456.zip or something.\n\n'
+              'Warning: This will replace all current tier lists with the ones from the backup.'),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                'Cancel',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: Text(
+                'Choose Backup File',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _importData();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _exportData() async {
     try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text("Exporting data..."),
+              ],
+            ),
+          );
+        },
+      );
+
       final tempDir = await getTemporaryDirectory();
       final zipFile = File(
-          '${tempDir.path}/tier_list_data_${DateTime.now().millisecondsSinceEpoch}.zip');
+          '${tempDir.path}/REA_${DateTime.now().millisecondsSinceEpoch}.zip');
       final archive = Archive();
 
       // Add tier lists data
@@ -739,6 +831,10 @@ class _MyHomePageState extends State<MyHomePage> {
       final zipData = ZipEncoder().encode(archive);
       if (zipData != null) {
         await zipFile.writeAsBytes(zipData);
+
+        // Close loading dialog
+        Navigator.of(context).pop();
+
         // Share the file
         await Share.shareXFiles([XFile(zipFile.path)],
             text: 'Here is your exported tier list data');
@@ -749,6 +845,7 @@ class _MyHomePageState extends State<MyHomePage> {
         throw Exception('Failed to encode zip file');
       }
     } catch (e) {
+      Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to export data: $e')),
       );
@@ -775,16 +872,20 @@ class _MyHomePageState extends State<MyHomePage> {
 
         // Get app's local directory for storing images
         final appDir = await getApplicationDocumentsDirectory();
-        final imagesDir = Directory('${appDir.path}/imported_images');
-        if (await imagesDir.exists()) {
-          await imagesDir.delete(recursive: true);
+        // Delete existing images in the app directory
+        final existingImages = appDir.listSync().whereType<File>().where(
+            (file) =>
+                file.path.toLowerCase().endsWith('.png') ||
+                file.path.toLowerCase().endsWith('.jpg') ||
+                file.path.toLowerCase().endsWith('.jpeg'));
+        for (var file in existingImages) {
+          await file.delete();
         }
-        await imagesDir.create(recursive: true);
 
         // Extract and save images
         for (final file in archive.files) {
           if (file.isFile && file.name.startsWith('images/')) {
-            final newPath = '${imagesDir.path}/${path.basename(file.name)}';
+            final newPath = '${appDir.path}/${path.basename(file.name)}';
             await File(newPath).writeAsBytes(file.content);
           }
         }
@@ -800,7 +901,7 @@ class _MyHomePageState extends State<MyHomePage> {
           for (var tierList in _tierLists) {
             if (tierList['coverPhoto'] != null) {
               final oldPath = tierList['coverPhoto'];
-              final newPath = '${imagesDir.path}/${path.basename(oldPath)}';
+              final newPath = '${appDir.path}/${path.basename(oldPath)}';
               tierList['coverPhoto'] = newPath;
             }
           }
@@ -822,7 +923,7 @@ class _MyHomePageState extends State<MyHomePage> {
             for (var item in customItems) {
               if (item['imagePath'] != null) {
                 final oldPath = item['imagePath'];
-                final newPath = '${imagesDir.path}/${path.basename(oldPath)}';
+                final newPath = '${appDir.path}/${path.basename(oldPath)}';
                 item['imagePath'] = newPath;
               }
             }

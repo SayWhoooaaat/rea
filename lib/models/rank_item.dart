@@ -262,9 +262,6 @@ class RankItem extends ChangeNotifier {
           '${id}_${DateTime.now().millisecondsSinceEpoch}.png';
       final String filePath = '${appDir.path}/$fileName';
 
-      print('Old imagePath: ${this.imagePath}');
-      print('New filePath: $filePath');
-
       final File newImage = File(filePath);
       await newImage.writeAsBytes(img.encodePng(resizedImage));
       print('Wrote new image to $filePath');
