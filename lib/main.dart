@@ -478,7 +478,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               if (showSearchBar)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 0),
+                  padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 0),
                   child: TextField(
                     focusNode: _searchFocusNode,
                     decoration: InputDecoration(
@@ -505,12 +505,13 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               Expanded(
                 child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 150, // Maximum width for each item
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 0.9,
                   ),
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   itemBuilder: (context, index) {
                     final tierList = _filteredTierLists[index];
                     return GestureDetector(
@@ -533,19 +534,15 @@ class _MyHomePageState extends State<MyHomePage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            tierList['coverPhoto'] != null
-                                ? Image.file(
-                                    File(tierList['coverPhoto']),
-                                    width: 50,
-                                    height: 50,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Icon(
-                                    Icons.view_list,
-                                    size: 50,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
+                            Image(
+                              image: tierList['coverPhoto'] != null
+                                  ? FileImage(File(tierList['coverPhoto']))
+                                  : const AssetImage(
+                                          'assets/default_icon_2.png')
+                                      as ImageProvider,
+                              width: 70,
+                              fit: BoxFit.cover,
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               tierList['name'],
