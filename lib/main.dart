@@ -105,13 +105,29 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _loadTierLists() async {
     _prefs = await SharedPreferences.getInstance();
+    final List<Map<String, dynamic>> loadedTierLists =
+        List<Map<String, dynamic>>.from(
+            json.decode(_prefs.getString('tierLists') ?? '[]'));
+
+    // Check and update cover photo paths
+    for (var tierList in loadedTierLists) {
+      if (tierList['coverPhoto'] != null) {
+        final file = File(tierList['coverPhoto']);
+        if (!await file.exists()) {
+          tierList['coverPhoto'] = null;
+        }
+      }
+    }
+
     setState(() {
-      _tierLists = List<Map<String, dynamic>>.from(
-          json.decode(_prefs.getString('tierLists') ?? '[]'));
+      _tierLists = loadedTierLists;
       for (var tierList in _tierLists) {
         _tierListPages[tierList['index']] = _buildTierListPage(tierList);
       }
     });
+
+    // Save the updated tier lists if any cover photos were nullified
+    await _saveTierLists();
   }
 
   Future<void> _saveTierLists() async {
@@ -507,9 +523,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: GridView.builder(
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 150, // Maximum width for each item
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 0.9,
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 6,
+                    childAspectRatio: 0.84,
                   ),
                   padding: const EdgeInsets.all(8),
                   itemBuilder: (context, index) {
@@ -531,29 +547,44 @@ class _MyHomePageState extends State<MyHomePage> {
                               (item) => item['index'] == tierList['index'])),
                       child: Container(
                         color: Theme.of(context).colorScheme.inversePrimary,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image(
-                              image: tierList['coverPhoto'] != null
-                                  ? FileImage(File(tierList['coverPhoto']))
-                                  : const AssetImage(
-                                          'assets/default_icon_2.png')
-                                      as ImageProvider,
-                              width: 70,
-                              fit: BoxFit.cover,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              tierList['name'],
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onPrimaryContainer,
-                              ),
-                            ),
-                          ],
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final imageSize = constraints.maxWidth *
+                                0.7; // Adjust this factor as needed
+                            return Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image(
+                                  image: tierList['coverPhoto'] != null
+                                      ? FileImage(File(tierList['coverPhoto']))
+                                      : const AssetImage(
+                                              'assets/default_icon_2.png')
+                                          as ImageProvider,
+                                  width: imageSize,
+                                  //height: imageSize,
+                                  fit: BoxFit.cover,
+                                ),
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                  child: Text(
+                                    tierList['name'],
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer,
+                                      fontSize:
+                                          13, //constraints.maxWidth * 0.13,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     );
