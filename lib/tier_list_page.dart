@@ -180,21 +180,6 @@ class TierListPageState extends State<TierListPage>
       appBar: AppBar(
         centerTitle: true,
         title: Text(widget.name),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'delete_all') {
-                _showDeleteAllConfirmationDialog();
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'delete_all',
-                child: Text('Delete All'),
-              ),
-            ],
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -325,32 +310,40 @@ class TierListPageState extends State<TierListPage>
   }
 
   Widget _buildUnrankedItemsRow() {
-    return DragTarget<RankItem>(
-      builder: (context, candidateData, rejectedData) {
-        return Container(
-          height: itemSize + 16,
-          color: candidateData.isNotEmpty
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.surfaceBright,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: items.where((item) => item.tier == null).length,
-            itemBuilder: (context, index) {
-              return _buildDraggableItem(
-                  items.where((item) => item.tier == null).toList()[index]);
-            },
+    return Container(
+      height: itemSize,
+      margin: const EdgeInsets.symmetric(vertical: 1.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: DragTarget<RankItem>(
+              builder: (context, candidateData, rejectedData) {
+                return Container(
+                  color: Theme.of(context).colorScheme.surfaceBright,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: items.where((item) => item.tier == null).length,
+                    itemBuilder: (context, index) {
+                      return _buildDraggableItem(items
+                          .where((item) => item.tier == null)
+                          .toList()[index]);
+                    },
+                  ),
+                );
+              },
+              onAcceptWithDetails: (details) {
+                final item = details.data;
+                setState(() {
+                  item.tier = null;
+                  updateItemIntertier(item, details.offset, null);
+                  sortRankItemsByIntertier(items);
+                  _saveCustomItems();
+                });
+              },
+            ),
           ),
-        );
-      },
-      onAcceptWithDetails: (details) {
-        final item = details.data;
-        setState(() {
-          item.tier = null;
-          updateItemIntertier(item, details.offset, null);
-          sortRankItemsByIntertier(items);
-          _saveCustomItems();
-        });
-      },
+        ],
+      ),
     );
   }
 
@@ -422,7 +415,7 @@ class TierListPageState extends State<TierListPage>
             data: item,
             delay: const Duration(milliseconds: 300),
             feedback: Material(
-              elevation: 4.0,
+              color: Colors.transparent,
               child: SizedBox(
                 width: itemSize,
                 height: itemSize,
