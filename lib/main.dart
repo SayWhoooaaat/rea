@@ -11,6 +11,8 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as path;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 void main() {
   runApp(const MyApp());
@@ -45,6 +47,7 @@ class _MyHomePageState extends State<MyHomePage> {
   String _searchQuery = '';
   final FocusNode _searchFocusNode = FocusNode();
   final TextEditingController _searchController = TextEditingController();
+  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
 
   void _openDebugPage() {
     Navigator.push(
@@ -81,6 +84,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    _initInAppPurchase();
     _loadTierLists();
     _searchController.addListener(_onSearchChanged);
   }
@@ -469,6 +473,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   case 'restore':
                     _showRestoreExplanation();
                     break;
+                  case 'donate':
+                    _showDonationOptions();
+                    break;
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -483,6 +490,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 const PopupMenuItem<String>(
                   value: 'restore',
                   child: Text('Restore My Tier Lists'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'donate',
+                  child: Text('Donate'),
                 ),
               ],
             ),
@@ -951,5 +962,112 @@ class _MyHomePageState extends State<MyHomePage> {
     final prefs = await SharedPreferences.getInstance();
     final customItemsJson = prefs.getString('customItems_$index') ?? '[]';
     return List<Map<String, dynamic>>.from(json.decode(customItemsJson));
+  }
+
+  void _showDonationOptions() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Support the Developer'),
+          content: const Text(
+              'Thank you for considering a donation! Your support helps keep this app ad-free.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Donate via Google Pay'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _launchGooglePay();
+              },
+            ),
+            TextButton(
+              child: const Text('In-App Purchase'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _makeDonationInApp();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _launchGooglePay() async {
+    // Replace with your actual Google Pay deep link
+    final Uri url =
+        Uri.parse('https://pay.google.com/gp/v/send?phone=+4797046098');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not launch Google Pay')),
+      );
+    }
+  }
+
+  void _makeDonationInApp() async {
+    final bool available = await _inAppPurchase.isAvailable();
+    if (!available) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('In-app purchases are not available')),
+      );
+      return;
+    }
+
+    // You need to register your product ID in your app's dashboard
+    const String productId = 'donation_product_id';
+
+    final ProductDetailsResponse response =
+        await _inAppPurchase.queryProductDetails({productId});
+    if (response.notFoundIDs.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Product not found')),
+      );
+      return;
+    }
+
+    final ProductDetails product = response.productDetails.first;
+    final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
+
+    try {
+      final bool success =
+          await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Thank you for your donation!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Purchase failed')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  Future<void> _initInAppPurchase() async {
+    int retries = 3;
+    while (retries > 0) {
+      try {
+        final bool available = await InAppPurchase.instance.isAvailable();
+        if (available) {
+          // Successfully connected
+          return;
+        }
+      } catch (e) {
+        print('Error initializing in-app purchase: $e');
+      }
+      retries--;
+      await Future.delayed(Duration(seconds: 1)); // Wait before retrying
+    }
+    // Handle the case where connection couldn't be established after retries
   }
 }
