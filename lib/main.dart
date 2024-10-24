@@ -3,7 +3,6 @@ import 'tier_list_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'debug_page.dart';
 import 'themes/material_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:archive/archive.dart';
@@ -11,7 +10,6 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as path;
-import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 void main() {
@@ -48,13 +46,6 @@ class _MyHomePageState extends State<MyHomePage> {
   final FocusNode _searchFocusNode = FocusNode();
   final TextEditingController _searchController = TextEditingController();
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
-
-  void _openDebugPage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => DebugPage()),
-    );
-  }
 
   void _forceRebuild(int index) {
     // Find the tier list data
@@ -464,9 +455,6 @@ class _MyHomePageState extends State<MyHomePage> {
             PopupMenuButton<String>(
               onSelected: (value) {
                 switch (value) {
-                  case 'debug':
-                    _openDebugPage();
-                    break;
                   case 'backup':
                     _showBackupExplanation();
                     break;
@@ -479,10 +467,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'debug',
-                  child: Text('Open Debug Page'),
-                ),
                 const PopupMenuItem<String>(
                   value: 'backup',
                   child: Text('Backup My Tier Lists'),
@@ -978,14 +962,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
-              child: const Text('Donate via Google Pay'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _launchGooglePay();
-              },
-            ),
-            TextButton(
-              child: const Text('In-App Purchase'),
+              child: const Text('Donate :)'),
               onPressed: () {
                 Navigator.of(context).pop();
                 _makeDonationInApp();
@@ -995,19 +972,6 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       },
     );
-  }
-
-  void _launchGooglePay() async {
-    // Replace with your actual Google Pay deep link
-    final Uri url =
-        Uri.parse('https://pay.google.com/gp/v/send?phone=+4797046098');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not launch Google Pay')),
-      );
-    }
   }
 
   void _makeDonationInApp() async {
