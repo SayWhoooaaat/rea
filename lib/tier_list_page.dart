@@ -356,16 +356,26 @@ class TierListPageState extends State<TierListPage>
         .sort((a, b) => (a.intertier ?? 0).compareTo(b.intertier ?? 0));
 
     int dropIndex = 0;
+    print('floating ${dropPosition.dx}');
     for (int i = 0; i < relevantItems.length; i++) {
-      RenderBox box =
-          relevantItems[i].key.currentContext!.findRenderObject() as RenderBox;
+      final currentContext = relevantItems[i].key.currentContext;
+      // Skip if the item is not currently rendered (outside viewport)
+      if (currentContext == null) {
+        continue;
+      }
+      final RenderBox? box = currentContext.findRenderObject() as RenderBox?;
+      if (box == null) {
+        continue;
+      }
       Offset itemPosition = box.localToGlobal(Offset.zero);
+      print('floating ${itemPosition.dx}');
       if (dropPosition.dx > itemPosition.dx) {
         dropIndex = i + 1;
       } else {
         break;
       }
     }
+    print('floating ${dropIndex}');
 
     // Insert the item at the correct position
     relevantItems.insert(dropIndex, item);
