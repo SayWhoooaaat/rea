@@ -635,11 +635,12 @@ class _MyHomePageState extends State<MyHomePage> {
                 ListTile(
                   leading: const Icon(Icons.list),
                   title: const Text('No Image'),
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(context);
                     setState(() {
                       _tierLists[index]['coverPhoto'] = null;
                     });
+                    await _saveTierLists();
                   },
                 ),
                 const Divider(),
@@ -679,9 +680,6 @@ class _MyHomePageState extends State<MyHomePage> {
       _tierLists[index]['coverPhoto'] = imagePath;
     });
     await _saveTierLists();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cover photo updated')),
-    );
   }
 
   void _showBackupExplanation() {
@@ -978,7 +976,9 @@ class _MyHomePageState extends State<MyHomePage> {
     final bool available = await _inAppPurchase.isAvailable();
     if (!available) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('In-app purchases are not available')),
+        const SnackBar(
+            content:
+                Text('I haven\'t set this up yet, but thanks for trying :)')),
       );
       return;
     }
@@ -990,7 +990,9 @@ class _MyHomePageState extends State<MyHomePage> {
         await _inAppPurchase.queryProductDetails({productId});
     if (response.notFoundIDs.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Product not found')),
+        const SnackBar(
+            content:
+                Text('I haven\'t set this up yet, but thanks for trying :)')),
       );
       return;
     }
@@ -1003,11 +1005,14 @@ class _MyHomePageState extends State<MyHomePage> {
           await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thank you for your donation!')),
+          const SnackBar(
+              content: Text('Thank you! You are a wonderful person!')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Purchase failed')),
+          const SnackBar(
+              content: Text(
+                  'Purchase failed, but don\'t worry, It\'s the thought that counts :)')),
         );
       }
     } catch (e) {
