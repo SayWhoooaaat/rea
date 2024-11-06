@@ -164,7 +164,7 @@ class RankItem extends ChangeNotifier {
     }
   }
 
-  Future<void> pickAndSetImage(ImageSource source) async {
+  Future<bool> pickAndSetImage(ImageSource source) async {
     try {
       print('pickAndSetImage');
       bool hasPermission = true;
@@ -181,13 +181,16 @@ class RankItem extends ChangeNotifier {
         final XFile? image = await picker.pickImage(source: source);
 
         if (image != null) {
-          await _cropAndProcessImage(image.path);
-          notifyListeners();
-          imagePathNotifier.notifyListeners();
-          print('Image updated, notified listeners');
-        } else {
-          print('No image selected');
+          final bool cropSuccess = await _cropAndProcessImage(image.path);
+          if (cropSuccess) {
+            notifyListeners();
+            imagePathNotifier.notifyListeners();
+            print('Image updated, notified listeners');
+            return true;
+          }
         }
+        print('No image selected or cropping cancelled');
+        return false;
       } else {
         print('Permission not granted');
         throw Exception('Permission not granted');
@@ -199,7 +202,7 @@ class RankItem extends ChangeNotifier {
     }
   }
 
-  Future<void> _cropAndProcessImage(String imagePath) async {
+  Future<bool> _cropAndProcessImage(String imagePath) async {
     try {
       print('cropAndProcessImage');
       final croppedFile = await ImageCropper().cropImage(
@@ -224,7 +227,9 @@ class RankItem extends ChangeNotifier {
 
       if (croppedFile != null) {
         await _processAndSaveImage(croppedFile.path);
+        return true;
       }
+      return false;
     } catch (e, stackTrace) {
       print('Error cropping image: $e');
       print('Stack trace: $stackTrace');
@@ -361,7 +366,7 @@ class RankItem extends ChangeNotifier {
     );
   }
 
-  Future<void> saveWebImage(Uint8List imageBytes) async {
+  Future<bool> saveWebImage(Uint8List imageBytes) async {
     try {
       final Directory tempDir = await getTemporaryDirectory();
       final String tempPath = '${tempDir.path}/${Uuid().v4()}.png';
@@ -376,16 +381,22 @@ class RankItem extends ChangeNotifier {
       print('Saved image byte length: ${savedBytes.length}');
       print('First few bytes: ${savedBytes.take(10)}');
 
-      await _cropAndProcessImage(tempPath);
+      final bool cropSuccess = await _cropAndProcessImage(tempPath);
 
       // Delete the temporary file
       if (await tempFile.exists()) {
         await tempFile.delete();
       }
 
-      notifyListeners();
-      imagePathNotifier.notifyListeners();
-      onUpdate(forceRebuild: true);
+      if (cropSuccess) {
+        notifyListeners();
+        imagePathNotifier.notifyListeners();
+        onUpdate(forceRebuild: true);
+        print('Image updated, notified listeners');
+        return true;
+      }
+      print('No image selected or cropping cancelled');
+      return false;
     } catch (e) {
       print('Error saving web image: $e');
       throw Exception('Failed to save web image: $e');

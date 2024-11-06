@@ -143,10 +143,6 @@ class TierListPageState extends State<TierListPage>
   }
 
   void _onWebTap() async {
-    final newItem = RankItem(
-        content: '',
-        onUpdate: ({bool forceRebuild = false}) =>
-            _saveCustomItems(forceRebuild: forceRebuild));
     final scaffoldMessenger =
         ScaffoldMessenger.of(this.context); // Use this.context
     try {
@@ -156,9 +152,16 @@ class TierListPageState extends State<TierListPage>
       );
       print('After WebPicker, mounted: $mounted');
       if (result != null && result is Uint8List) {
-        await newItem.saveWebImage(result);
+        final newItem = RankItem(
+            content: '',
+            onUpdate: ({bool forceRebuild = false}) =>
+                _saveCustomItems(forceRebuild: forceRebuild));
+
+        final bool success = await newItem.saveWebImage(result);
         print('After saveWebImage, mounted: $mounted');
-        _addItem(newItem);
+        if (success) {
+          _addItem(newItem);
+        }
         print('Before rebuild, mounted: $mounted');
         widget.onForceRebuild();
         print('After rebuild, mounted: $mounted');
@@ -213,8 +216,11 @@ class TierListPageState extends State<TierListPage>
                   onUpdate: ({bool forceRebuild = false}) =>
                       _saveCustomItems(forceRebuild: forceRebuild));
               try {
-                await newItem.pickAndSetImage(ImageSource.gallery);
-                _addItem(newItem);
+                final bool success =
+                    await newItem.pickAndSetImage(ImageSource.gallery);
+                if (success) {
+                  _addItem(newItem);
+                }
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error: $e')),
@@ -231,8 +237,11 @@ class TierListPageState extends State<TierListPage>
                   onUpdate: ({bool forceRebuild = false}) =>
                       _saveCustomItems(forceRebuild: forceRebuild));
               try {
-                await newItem.pickAndSetImage(ImageSource.camera);
-                _addItem(newItem);
+                final bool success =
+                    await newItem.pickAndSetImage(ImageSource.camera);
+                if (success) {
+                  _addItem(newItem);
+                }
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error: $e')),
