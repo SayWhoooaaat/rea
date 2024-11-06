@@ -10,8 +10,6 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as path;
-import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:flutter/foundation.dart';
 
 void main() {
   runApp(const MyApp());
@@ -46,7 +44,6 @@ class _MyHomePageState extends State<MyHomePage> {
   String _searchQuery = '';
   final FocusNode _searchFocusNode = FocusNode();
   final TextEditingController _searchController = TextEditingController();
-  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
 
   void _forceRebuild(int index) {
     // Find the tier list data
@@ -76,7 +73,6 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _initInAppPurchase();
     _loadTierLists();
     _searchController.addListener(_onSearchChanged);
   }
@@ -462,9 +458,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   case 'restore':
                     _showRestoreExplanation();
                     break;
-                  case 'donate':
-                    _showDonationOptions();
-                    break;
                 }
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -475,10 +468,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 const PopupMenuItem<String>(
                   value: 'restore',
                   child: Text('Restore My Tier Lists'),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'donate',
-                  child: Text('Donate'),
                 ),
               ],
             ),
@@ -945,120 +934,5 @@ class _MyHomePageState extends State<MyHomePage> {
     final prefs = await SharedPreferences.getInstance();
     final customItemsJson = prefs.getString('customItems_$index') ?? '[]';
     return List<Map<String, dynamic>>.from(json.decode(customItemsJson));
-  }
-
-  void _showDonationOptions() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Support the Developer'),
-          content: const Text(
-              'Thank you for considering a donation! Your support helps keep this app ad-free.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('€3'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _makeDonationInApp('donation1');
-              },
-            ),
-            TextButton(
-              child: const Text('€10'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _makeDonationInApp('donation2');
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _makeDonationInApp(String productId) async {
-    if (kDebugMode) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'You are only using the debug-app, not the full version. No need to donate :)'),
-        ),
-      );
-      return;
-    }
-    final bool available = await _inAppPurchase.isAvailable();
-    if (!available) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('I haven\'t set this up yet, but thanks for trying :)')),
-      );
-      return;
-    }
-
-    final ProductDetailsResponse response =
-        await _inAppPurchase.queryProductDetails({productId});
-    if (response.notFoundIDs.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('I haven\'t set this up yet, but thanks for trying :)')),
-      );
-      return;
-    }
-    if (response.productDetails.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('I haven\'t set this up yet, but thanks for trying :)')),
-      );
-      return;
-    }
-
-    final ProductDetails product = response.productDetails.first;
-    final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
-
-    try {
-      final bool success =
-          await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Thank you! You are a wonderful person!')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Purchase failed, but don\'t worry, It\'s the thought that counts :)')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-  }
-
-  Future<void> _initInAppPurchase() async {
-    int retries = 3;
-    while (retries > 0) {
-      try {
-        final bool available = await InAppPurchase.instance.isAvailable();
-        if (available) {
-          // Successfully connected
-          return;
-        }
-      } catch (e) {
-        print('Error initializing in-app purchase: $e');
-      }
-      retries--;
-      await Future.delayed(Duration(seconds: 1)); // Wait before retrying
-    }
-    // Handle the case where connection couldn't be established after retries
   }
 }
