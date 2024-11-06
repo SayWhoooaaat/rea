@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as path;
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:flutter/foundation.dart';
 
 void main() {
   runApp(const MyApp());
@@ -960,10 +961,17 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
-              child: const Text('Donate :)'),
+              child: const Text('€3'),
               onPressed: () {
                 Navigator.of(context).pop();
-                _makeDonationInApp();
+                _makeDonationInApp('donation1');
+              },
+            ),
+            TextButton(
+              child: const Text('€10'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _makeDonationInApp('donation2');
               },
             ),
           ],
@@ -972,7 +980,16 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _makeDonationInApp() async {
+  void _makeDonationInApp(String productId) async {
+    if (kDebugMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'You are only using the debug-app, not the full version. No need to donate :)'),
+        ),
+      );
+      return;
+    }
     final bool available = await _inAppPurchase.isAvailable();
     if (!available) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -983,12 +1000,17 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    // You need to register your product ID in your app's dashboard
-    const String productId = 'donation_product_id';
-
     final ProductDetailsResponse response =
         await _inAppPurchase.queryProductDetails({productId});
     if (response.notFoundIDs.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('I haven\'t set this up yet, but thanks for trying :)')),
+      );
+      return;
+    }
+    if (response.productDetails.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content:
