@@ -55,8 +55,7 @@ class TierListPageState extends State<TierListPage>
 
   bool _isLoading = true;
 
-  // Add this constant at the top of the class
-  static const double itemSize = 70.0;
+  late double itemSize;
 
   @override
   void initState() {
@@ -178,6 +177,12 @@ class TierListPageState extends State<TierListPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // Calculate itemSize based on available height
+    final double availableHeight = MediaQuery.of(context).size.height -
+        MediaQuery.of(context).padding.top -
+        kToolbarHeight;
+    itemSize =
+        (availableHeight / (tiers.length + 1.5)).clamp(70.0, double.infinity);
     print('At Build, mounted: $mounted');
     return Scaffold(
       appBar: AppBar(
@@ -208,8 +213,8 @@ class TierListPageState extends State<TierListPage>
         activeIcon: Icons.close,
         children: [
           SpeedDialChild(
-            child: const Icon(Icons.photo_library),
-            label: 'Pick from device',
+            child: const Icon(Icons.camera_alt),
+            label: 'Open camera',
             onTap: () async {
               final newItem = RankItem(
                   content: '',
@@ -217,7 +222,7 @@ class TierListPageState extends State<TierListPage>
                       _saveCustomItems(forceRebuild: forceRebuild));
               try {
                 final bool success =
-                    await newItem.pickAndSetImage(ImageSource.gallery);
+                    await newItem.pickAndSetImage(ImageSource.camera);
                 if (success) {
                   _addItem(newItem);
                 }
@@ -229,8 +234,8 @@ class TierListPageState extends State<TierListPage>
             },
           ),
           SpeedDialChild(
-            child: const Icon(Icons.camera_alt),
-            label: 'Open camera',
+            child: const Icon(Icons.photo_library),
+            label: 'Pick from device',
             onTap: () async {
               final newItem = RankItem(
                   content: '',
@@ -238,7 +243,7 @@ class TierListPageState extends State<TierListPage>
                       _saveCustomItems(forceRebuild: forceRebuild));
               try {
                 final bool success =
-                    await newItem.pickAndSetImage(ImageSource.camera);
+                    await newItem.pickAndSetImage(ImageSource.gallery);
                 if (success) {
                   _addItem(newItem);
                 }
@@ -279,9 +284,9 @@ class TierListPageState extends State<TierListPage>
             alignment: Alignment.center,
             child: Text(
               tier,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 24,
+                fontSize: itemSize * 0.32,
                 color: Colors.black,
               ),
             ),

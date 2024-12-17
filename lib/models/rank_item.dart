@@ -311,6 +311,27 @@ class RankItem extends ChangeNotifier {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
+                leading: const Icon(Icons.search),
+                title: const Text('Web Image Search'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    final Uint8List? imageBytes = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => WebViewScreenshotPage()),
+                    );
+                    if (imageBytes != null) {
+                      await saveWebImage(imageBytes);
+                    }
+                  } catch (e) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Choose from Device'),
                 onTap: () async {
@@ -333,27 +354,6 @@ class RankItem extends ChangeNotifier {
                     await pickAndSetImage(ImageSource.camera);
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.search),
-                title: const Text('Web Image Search'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  try {
-                    final Uint8List? imageBytes = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => WebViewScreenshotPage()),
-                    );
-                    if (imageBytes != null) {
-                      await saveWebImage(imageBytes);
-                    }
-                  } catch (e) {
-                    scaffoldMessenger.showSnackBar(
                       SnackBar(content: Text('Error: $e')),
                     );
                   }
