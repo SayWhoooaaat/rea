@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
 import 'package:rea/web_picker.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class RankItem extends ChangeNotifier {
   final GlobalKey key = GlobalKey();
@@ -168,9 +169,25 @@ class RankItem extends ChangeNotifier {
     try {
       print('pickAndSetImage');
       bool hasPermission = true;
+
       if (!kIsWeb) {
         if (source == ImageSource.gallery) {
-          hasPermission = await _requestPermission(Permission.photos);
+          if (Platform.isAndroid) {
+            // Get Android SDK version using device_info_plus
+            final deviceInfo = DeviceInfoPlugin();
+            final androidInfo = await deviceInfo.androidInfo;
+            final sdkInt = androidInfo.version.sdkInt;
+
+            if (sdkInt >= 33) {
+              // Android 13+ (API 33+)
+              hasPermission = await _requestPermission(Permission.photos);
+            } else {
+              // Android 12 and below
+              hasPermission = await _requestPermission(Permission.storage);
+            }
+          } else {
+            hasPermission = await _requestPermission(Permission.photos);
+          }
         } else {
           hasPermission = await _requestPermission(Permission.camera);
         }
