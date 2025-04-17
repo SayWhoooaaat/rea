@@ -45,13 +45,13 @@ class _MyHomePageState extends State<MyHomePage> {
   final FocusNode _searchFocusNode = FocusNode();
   final TextEditingController _searchController = TextEditingController();
 
-  void _forceRebuild(int index) {
-    // Find the tier list data
-    final tierListData = _tierLists.firstWhere((tl) => tl['index'] == index);
+  Future<void> _forceRebuild(int index) async {
+    await _loadTierLists(); // ← pull in the updated prefs
     Navigator.of(context).pop();
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _buildTierListPage(tierListData),
+        builder: (context) => _buildTierListPage(
+            _tierLists.firstWhere((tl) => tl['index'] == index)),
         settings: RouteSettings(arguments: index),
       ),
     );

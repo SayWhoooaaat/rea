@@ -333,17 +333,20 @@ class TierListPageState extends State<TierListPage>
       margin: const EdgeInsets.symmetric(vertical: 1.0),
       child: Row(
         children: [
-          Container(
-            width: itemSize,
-            height: itemSize,
-            color: tierColors[tier] ?? Colors.grey,
-            alignment: Alignment.center,
-            child: Text(
-              tier,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: itemSize * 0.32,
-                color: Colors.black,
+          GestureDetector(
+            onLongPress: () => _showTierOptionsDialog(tier),
+            child: Container(
+              width: itemSize,
+              height: itemSize,
+              color: tierColors[tier] ?? Colors.grey,
+              alignment: Alignment.center,
+              child: Text(
+                tier,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: itemSize * 0.32,
+                  color: Colors.black,
+                ),
               ),
             ),
           ),
@@ -555,6 +558,100 @@ class TierListPageState extends State<TierListPage>
         onUpdate: ({bool forceRebuild = false}) =>
             _saveCustomItems(forceRebuild: forceRebuild));
     _addItem(newItem);
+  }
+
+  void _showTierOptionsDialog(String tier) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Edit tier $tier'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('Move up'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _moveTier(tier, up: true);
+              },
+            ),
+            ListTile(
+              title: const Text('Move down'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _moveTier(tier, up: false);
+              },
+            ),
+            ListTile(
+              title: const Text('Remove tier'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _removeTier(tier);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _moveTier(String tier, {required bool up}) {
+    final i = tiers.indexOf(tier);
+    final j = up ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= tiers.length) return;
+    setState(() {
+      tiers.removeAt(i);
+      tiers.insert(j, tier);
+    });
+    _saveTierData();
+  }
+
+  void _removeTier(String tier) {
+    setState(() {
+      tiers.remove(tier);
+      tierColors.remove(tier);
+      // un‐assign any items in that tier:
+      for (var it in items.where((it) => it.tier == tier)) {
+        it.tier = null;
+      }
+    });
+    _saveTierData();
+  }
+
+  Future<void> _saveTierData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('tierLists');
+    final List<dynamic> all =
+        raw != null ? json.decode(raw) as List<dynamic> : <dynamic>[];
+
+    // build fresh ranks list
+    final newRanks = tiers.map((label) {
+      final c = tierColors[label]!;
+      final hex = c.value.toRadixString(16).padLeft(8, '0').substring(2);
+      return {
+        'label': label,
+        'color': '#${hex.toUpperCase()}',
+      };
+    }).toList();
+
+    // find existing entry
+    final idx = all.indexWhere((e) => e['index'] == widget.index);
+    if (idx != -1) {
+      // clone & update only ranks
+      final entry = Map<String, dynamic>.from(all[idx]);
+      entry['ranks'] = newRanks;
+      all[idx] = entry;
+    } else {
+      // no entry yet— add minimal one
+      all.add({
+        'index': widget.index,
+        'ranks': newRanks,
+      });
+    }
+    await prefs.setString('tierLists', json.encode(all));
+    widget.onForceRebuild(); // tell main page to refresh its list
+    if (mounted) setState(() {}); // refresh UI if needed
+    _saveAndNotifyItemUpdate();
   }
 
   Future<void> deleteAllContent() async {
