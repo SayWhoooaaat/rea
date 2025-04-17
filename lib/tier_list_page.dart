@@ -50,7 +50,9 @@ class TierListPageState extends State<TierListPage>
   @override
   bool get wantKeepAlive => true;
 
-  final List<String> tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
+  List<String> tiers = [];
+  Map<String, Color> tierColors = {};
+
   List<RankItem> items = [];
 
   bool _isLoading = true;
@@ -60,12 +62,14 @@ class TierListPageState extends State<TierListPage>
   @override
   void initState() {
     super.initState();
-    _loadCustomItems().then((_) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    _loadTierData().then((_) {
+      _loadCustomItems().then((_) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      });
     });
   }
 
@@ -75,6 +79,58 @@ class TierListPageState extends State<TierListPage>
   }
 
   String get _storageKey => 'customItems_${widget.index}';
+
+  Future<void> _loadTierData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? tierListsJson = prefs.getString('tierLists');
+
+    if (tierListsJson != null) {
+      final List<dynamic> allTierLists = json.decode(tierListsJson);
+      // Find the correct tier list for this index
+      final tierList = allTierLists.firstWhere(
+          (list) => list['index'] == widget.index,
+          orElse: () => null);
+
+      if (tierList != null && tierList.containsKey('ranks')) {
+        List<dynamic> ranks = tierList['ranks'];
+        setState(() {
+          // Extract the label from each rank item
+          tiers = ranks.map<String>((rank) => rank['label'] as String).toList();
+
+          // Build the colors map
+          tierColors = {};
+          for (var rank in ranks) {
+            // Convert hex color string to Color
+            String hexColor = rank['color'];
+            if (hexColor.startsWith('#')) {
+              hexColor = hexColor.substring(1);
+            }
+            tierColors[rank['label']] =
+                Color(int.parse('FF$hexColor', radix: 16));
+          }
+        });
+      } else {
+        _setDefaultTiers();
+      }
+    } else {
+      _setDefaultTiers();
+    }
+  }
+
+  void _setDefaultTiers() {
+    setState(() {
+      tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
+      tierColors = {
+        'S': Colors.red,
+        'A': Colors.orange,
+        'B': Colors.amber,
+        'C': Colors.green,
+        'D': Colors.blue,
+        'E': Colors.indigo,
+        'F': Colors.purple,
+      };
+    });
+  }
 
   Future<void> _loadCustomItems() async {
     final prefs = await SharedPreferences.getInstance();
@@ -458,24 +514,7 @@ class TierListPageState extends State<TierListPage>
   }
 
   Color _getTierColor(String tier) {
-    switch (tier) {
-      case 'S':
-        return Colors.red;
-      case 'A':
-        return Colors.orange;
-      case 'B':
-        return Colors.amber;
-      case 'C':
-        return Colors.green;
-      case 'D':
-        return Colors.blue;
-      case 'E':
-        return Colors.indigo;
-      case 'F':
-        return Colors.purple;
-      default:
-        return Colors.grey;
-    }
+    return tierColors[tier] ?? Colors.grey;
   }
 
   void _showTextInputDialog(BuildContext context) {
