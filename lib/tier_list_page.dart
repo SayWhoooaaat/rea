@@ -336,7 +336,7 @@ class TierListPageState extends State<TierListPage>
           Container(
             width: itemSize,
             height: itemSize,
-            color: _getTierColor(tier),
+            color: tierColors[tier] ?? Colors.grey,
             alignment: Alignment.center,
             child: Text(
               tier,
@@ -511,10 +511,6 @@ class TierListPageState extends State<TierListPage>
         );
       },
     );
-  }
-
-  Color _getTierColor(String tier) {
-    return tierColors[tier] ?? Colors.grey;
   }
 
   void _showTextInputDialog(BuildContext context) {
