@@ -16,6 +16,7 @@ class RankItem extends ChangeNotifier {
   final String id;
   String content;
   ValueNotifier<String?> imagePathNotifier;
+  int? tierId; // ← was String? tier
   String? tier;
   int? intertier;
   final Function({bool forceRebuild}) onUpdate;
@@ -23,6 +24,7 @@ class RankItem extends ChangeNotifier {
   RankItem({
     required this.content,
     String? imagePath,
+    this.tierId,
     this.tier,
     this.intertier,
     String? id,
@@ -51,9 +53,21 @@ class RankItem extends ChangeNotifier {
   // Factory constructor to create a RankItem from JSON
   factory RankItem.fromJson(Map<String, dynamic> json,
       {required Function({bool forceRebuild}) onUpdate}) {
+    int? id = json['tierId']; // new field (may be null)
+
+    if (id == null && json['tier'] != null) {
+      // <- old file?
+      const Map<String, int> map = {
+        // default 1‑based order
+        'S': 1, 'A': 2, 'B': 3, 'C': 4,
+        'D': 5, 'E': 6, 'F': 7,
+      };
+      id = map[json['tier']]; // null if label unknown
+    }
     return RankItem(
       content: json['content'],
       imagePath: json['imagePath'],
+      tierId: id,
       tier: json['tier'],
       intertier: json['intertier'],
       id: json['id'],
@@ -67,6 +81,7 @@ class RankItem extends ChangeNotifier {
       'id': id,
       'content': content,
       'imagePath': imagePath,
+      'tierId': tierId,
       'tier': tier,
       'intertier': intertier,
     };

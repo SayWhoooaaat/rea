@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter/services.dart';
+import 'models/tier_meta.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -52,8 +53,12 @@ class TierListPageState extends State<TierListPage>
   @override
   bool get wantKeepAlive => true;
 
-  List<String> tiers = [];
-  Map<String, Color> tierColors = {};
+  // OLD
+  // List<String> tiers = [];
+  // Map<String, Color> tierColors = {};
+
+  // NEW
+  List<TierMeta> tiers = [];
 
   List<RankItem> items = [];
 
@@ -84,53 +89,52 @@ class TierListPageState extends State<TierListPage>
 
   Future<void> _loadTierData() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? tierListsJson = prefs.getString('tierLists');
+    final String? raw = prefs.getString('tierLists');
 
-    if (tierListsJson != null) {
-      final List<dynamic> allTierLists = json.decode(tierListsJson);
-      // Find the correct tier list for this index
-      final tierList = allTierLists.firstWhere(
-          (list) => list['index'] == widget.index,
-          orElse: () => null);
-
-      if (tierList != null && tierList.containsKey('ranks')) {
-        List<dynamic> ranks = tierList['ranks'];
-        setState(() {
-          // Extract the label from each rank item
-          tiers = ranks.map<String>((rank) => rank['label'] as String).toList();
-
-          // Build the colors map
-          tierColors = {};
-          for (var rank in ranks) {
-            // Convert hex color string to Color
-            String hexColor = rank['color'];
-            if (hexColor.startsWith('#')) {
-              hexColor = hexColor.substring(1);
-            }
-            tierColors[rank['label']] =
-                Color(int.parse('FF$hexColor', radix: 16));
-          }
-        });
-      } else {
-        _setDefaultTiers();
-      }
-    } else {
+    if (raw == null) {
       _setDefaultTiers();
+      return;
     }
+
+    final List<dynamic> allLists = json.decode(raw);
+    final tierList = allLists.firstWhere((e) => e['index'] == widget.index,
+        orElse: () => null);
+
+    if (tierList == null || tierList['ranks'] == null) {
+      _setDefaultTiers();
+      return;
+    }
+
+    final ranks = List<Map<String, dynamic>>.from(tierList['ranks']);
+
+    setState(() {
+      tiers = [
+        for (var i = 0; i < ranks.length; i++)
+          TierMeta(
+            id: (ranks[i]['id'] ?? i + 1) as int, // ← migrate old data
+            label: ranks[i]['label'] as String,
+            color: _hexToColor(ranks[i]['color'] as String),
+          )
+      ];
+    });
+  }
+
+  Color _hexToColor(String hex) {
+    hex = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
   }
 
   void _setDefaultTiers() {
     setState(() {
-      tiers = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
-      tierColors = {
-        'S': Colors.red,
-        'A': Colors.orange,
-        'B': Colors.amber,
-        'C': Colors.green,
-        'D': Colors.blue,
-        'E': Colors.indigo,
-        'F': Colors.purple,
-      };
+      tiers = [
+        TierMeta(id: 1, label: 'S', color: Colors.red),
+        TierMeta(id: 2, label: 'A', color: Colors.orange),
+        TierMeta(id: 3, label: 'B', color: Colors.amber),
+        TierMeta(id: 4, label: 'C', color: Colors.green),
+        TierMeta(id: 5, label: 'D', color: Colors.blue),
+        TierMeta(id: 6, label: 'E', color: Colors.indigo),
+        TierMeta(id: 7, label: 'F', color: Colors.purple),
+      ];
     });
   }
 
@@ -173,29 +177,32 @@ class TierListPageState extends State<TierListPage>
   }
 
   void sortRankItemsByIntertier(List<RankItem> items) {
+    int tierOrder(int? tierId) {
+      if (tierId == null) return tiers.length; // “unranked” last
+      final idx = tiers.indexWhere((t) => t.id == tierId);
+      return idx >= 0 ? idx : tiers.length; // unknown → last
+    }
+
+    /* ---- 1. stable sort: by tier row first, then by inter‑row position ---- */
     items.sort((a, b) {
-      int aTierIndex = a.tier != null ? tiers.indexOf(a.tier!) : tiers.length;
-      int bTierIndex = b.tier != null ? tiers.indexOf(b.tier!) : tiers.length;
+      final aRow = tierOrder(a.tierId);
+      final bRow = tierOrder(b.tierId);
+      if (aRow != bRow) return aRow.compareTo(bRow);
 
-      // First, sort by tier
-      if (aTierIndex != bTierIndex) {
-        return aTierIndex.compareTo(bTierIndex);
-      }
-
-      // If in the same tier (including unranked), sort by intertier
       return (a.intertier ?? double.maxFinite)
           .compareTo(b.intertier ?? double.maxFinite);
     });
 
-    // Update intertier values
-    String? currentTier;
-    int intertierCount = 1;
-    for (var item in items) {
-      if (item.tier != currentTier) {
-        currentTier = item.tier;
-        intertierCount = 1;
+    /* ---- 2. renumber intertier for every tier separately ------------------ */
+    int? currentRow;
+    int counter = 1;
+    for (final it in items) {
+      final row = tierOrder(it.tierId);
+      if (row != currentRow) {
+        currentRow = row;
+        counter = 1;
       }
-      item.intertier = intertierCount++;
+      it.intertier = counter++;
     }
   }
 
@@ -329,7 +336,7 @@ class TierListPageState extends State<TierListPage>
     );
   }
 
-  Widget _buildTierRow(String tier) {
+  Widget _buildTierRow(TierMeta tierMeta) {
     return Container(
       height: itemSize,
       margin: const EdgeInsets.symmetric(vertical: 1.0),
@@ -338,15 +345,15 @@ class TierListPageState extends State<TierListPage>
           GestureDetector(
             onLongPress: () {
               HapticFeedback.mediumImpact();
-              _showTierOptionsDialog(tier);
+              _showTierOptionsDialog(tierMeta);
             },
             child: Container(
               width: itemSize,
               height: itemSize,
-              color: tierColors[tier] ?? Colors.grey,
+              color: tierMeta.color,
               alignment: Alignment.center,
               child: Text(
-                tier,
+                tierMeta.label,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: itemSize * 0.32,
@@ -357,25 +364,24 @@ class TierListPageState extends State<TierListPage>
           ),
           Expanded(
             child: DragTarget<RankItem>(
-              builder: (context, candidateData, rejectedData) {
-                return Container(
-                  color: Theme.of(context).colorScheme.surfaceBright,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: items.where((item) => item.tier == tier).length,
-                    itemBuilder: (context, index) {
-                      return _buildDraggableItem(items
-                          .where((item) => item.tier == tier)
-                          .toList()[index]);
-                    },
-                  ),
-                );
-              },
+              builder: (context, _, __) => Container(
+                color: Theme.of(context).colorScheme.surfaceBright,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount:
+                      items.where((it) => it.tierId == tierMeta.id).length,
+                  itemBuilder: (ctx, i) => _buildDraggableItem(items
+                      .where((it) => it.tierId == tierMeta.id)
+                      .toList()[i]),
+                ),
+              ),
               onAcceptWithDetails: (details) {
                 final item = details.data;
                 setState(() {
-                  item.tier = tier;
-                  updateItemIntertier(item, details.offset, item.tier);
+                  item
+                    ..tierId = tierMeta.id
+                    ..tier = tierMeta.label; // keep legacy text, optional
+                  updateItemIntertier(item, details.offset, tierMeta.id);
                   sortRankItemsByIntertier(items);
                   _saveCustomItems();
                 });
@@ -395,24 +401,21 @@ class TierListPageState extends State<TierListPage>
         children: [
           Expanded(
             child: DragTarget<RankItem>(
-              builder: (context, candidateData, rejectedData) {
-                return Container(
-                  color: Theme.of(context).colorScheme.surfaceBright,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: items.where((item) => item.tier == null).length,
-                    itemBuilder: (context, index) {
-                      return _buildDraggableItem(items
-                          .where((item) => item.tier == null)
-                          .toList()[index]);
-                    },
-                  ),
-                );
-              },
+              builder: (c, _, __) => Container(
+                color: Theme.of(context).colorScheme.surfaceBright,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: items.where((it) => it.tierId == null).length,
+                  itemBuilder: (ctx, i) => _buildDraggableItem(
+                      items.where((it) => it.tierId == null).toList()[i]),
+                ),
+              ),
               onAcceptWithDetails: (details) {
                 final item = details.data;
                 setState(() {
-                  item.tier = null;
+                  item
+                    ..tierId = null
+                    ..tier = null;
                   updateItemIntertier(item, details.offset, null);
                   sortRankItemsByIntertier(items);
                   _saveCustomItems();
@@ -425,53 +428,37 @@ class TierListPageState extends State<TierListPage>
     );
   }
 
-  void updateItemIntertier(RankItem item, Offset dropPosition, String? tier) {
-    // Remove the item from its current position
+  void updateItemIntertier(RankItem item, Offset dropPosition, int? tierId) {
     items.remove(item);
 
-    List<RankItem> relevantItems = items.where((i) => i.tier == tier).toList();
-    relevantItems
-        .sort((a, b) => (a.intertier ?? 0).compareTo(b.intertier ?? 0));
+    final relevant = items.where((i) => i.tierId == tierId).toList()
+      ..sort((a, b) => (a.intertier ?? 0).compareTo(b.intertier ?? 0));
 
     int dropIndex = 0;
-    print('floating ${dropPosition.dx}');
-    for (int i = 0; i < relevantItems.length; i++) {
-      final currentContext = relevantItems[i].key.currentContext;
-      // Skip if the item is not currently rendered (outside viewport)
-      if (currentContext == null) {
-        continue;
-      }
-      final RenderBox? box = currentContext.findRenderObject() as RenderBox?;
-      if (box == null) {
-        continue;
-      }
-      Offset itemPosition = box.localToGlobal(Offset.zero);
-      print('floating ${itemPosition.dx}');
-      if (dropPosition.dx > itemPosition.dx) {
+    for (var i = 0; i < relevant.length; i++) {
+      final ctx = relevant[i].key.currentContext;
+      if (ctx == null) continue;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box == null) continue;
+      if (dropPosition.dx > box.localToGlobal(Offset.zero).dx) {
         dropIndex = i + 1;
       } else {
         break;
       }
     }
-    print('floating ${dropIndex}');
 
-    // Insert the item at the correct position
-    relevantItems.insert(dropIndex, item);
+    relevant.insert(dropIndex, item);
 
-    // Update the tier of the item
-    item.tier = tier;
+    item.tierId = tierId;
 
-    // Renumber all items from 1 to n
-    for (int i = 0; i < relevantItems.length; i++) {
-      relevantItems[i].intertier = i + 1;
+    for (var i = 0; i < relevant.length; i++) {
+      relevant[i].intertier = i + 1;
     }
 
-    // Update the main items list
-    items.removeWhere((i) => i.tier == tier);
-    items.addAll(relevantItems);
+    items.removeWhere((i) => i.tierId == tierId);
+    items.addAll(relevant);
 
-    // Add this line at the end of the method
-    _saveAndNotifyItemUpdate();
+    _saveAndNotifyItemUpdate(); // persist + rebuild
   }
 
   Widget _buildDraggableItem(RankItem item) {
@@ -565,7 +552,8 @@ class TierListPageState extends State<TierListPage>
     _addItem(newItem);
   }
 
-  void _showTierOptionsDialog(String tier) {
+  void _showTierOptionsDialog(TierMeta tierMeta) {
+    String tier = tierMeta.label;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -579,7 +567,7 @@ class TierListPageState extends State<TierListPage>
               title: const Text('Rename tier'),
               onTap: () {
                 Navigator.pop(ctx);
-                _showRenameTierDialog(tier);
+                _showRenameTierDialog(tierMeta);
               },
             ),
             ListTile(
@@ -587,7 +575,7 @@ class TierListPageState extends State<TierListPage>
               title: const Text('Change color'),
               onTap: () {
                 Navigator.pop(ctx);
-                _showChangeTierColorDialog(tier);
+                _showChangeTierColorDialog(tierMeta);
               },
             ),
             ListTile(
@@ -595,7 +583,7 @@ class TierListPageState extends State<TierListPage>
               title: const Text('Insert new tier'),
               onTap: () {
                 Navigator.pop(ctx);
-                _showInsertTierDialog(tier);
+                _showInsertTierDialog(tierMeta);
               },
             ),
             ListTile(
@@ -603,7 +591,7 @@ class TierListPageState extends State<TierListPage>
               title: const Text('Move up'),
               onTap: () {
                 Navigator.pop(ctx);
-                _moveTier(tier, up: true);
+                _moveTier(tierMeta, up: true);
               },
             ),
             ListTile(
@@ -611,7 +599,7 @@ class TierListPageState extends State<TierListPage>
               title: const Text('Move down'),
               onTap: () {
                 Navigator.pop(ctx);
-                _moveTier(tier, up: false);
+                _moveTier(tierMeta, up: false);
               },
             ),
             ListTile(
@@ -619,7 +607,7 @@ class TierListPageState extends State<TierListPage>
               title: const Text('Remove tier'),
               onTap: () {
                 Navigator.pop(ctx);
-                _removeTier(tier);
+                _removeTier(tierMeta);
               },
             ),
           ],
@@ -628,33 +616,44 @@ class TierListPageState extends State<TierListPage>
     );
   }
 
-  void _showRenameTierDialog(String oldTier) {
-    String newTierName = oldTier;
+  void _showRenameTierDialog(TierMeta tierMeta) {
+    String newLabel = tierMeta.label;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Rename tier'),
         content: TextField(
+          controller: TextEditingController(text: tierMeta.label),
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
           decoration: const InputDecoration(labelText: 'New name'),
-          onChanged: (value) => newTierName = value,
+          onChanged: (v) => newLabel = v,
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
-              if (newTierName.trim().isEmpty) return;
-              final i = tiers.indexOf(oldTier);
+              if (newLabel.trim().isEmpty) return;
+
               setState(() {
-                tiers[i] = newTierName;
-                final c = tierColors.remove(oldTier);
-                if (c != null) tierColors[newTierName] = c;
-                for (var it in items.where((it) => it.tier == oldTier)) {
-                  it.tier = newTierName;
+                final i = tiers.indexWhere((t) => t.id == tierMeta.id);
+                tiers[i] = TierMeta(
+                  id: tierMeta.id,
+                  label: newLabel,
+                  color: tierMeta.color, // keep colour unchanged
+                );
+
+                // keep legacy 'tier' label inside existing items in sync
+                for (final it
+                    in items.where((it) => it.tierId == tierMeta.id)) {
+                  it.tier = newLabel;
                 }
               });
+
               Navigator.pop(ctx);
               _saveTierData();
             },
@@ -665,8 +664,8 @@ class TierListPageState extends State<TierListPage>
     );
   }
 
-  void _showChangeTierColorDialog(String tier) {
-    Color selected = tierColors[tier] ?? Colors.grey;
+  void _showChangeTierColorDialog(TierMeta tierMeta) {
+    Color selected = tierMeta.color;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -689,7 +688,7 @@ class TierListPageState extends State<TierListPage>
               onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              setState(() => tierColors[tier] = selected);
+              setState(() => tierMeta.color = selected);
               Navigator.pop(ctx);
               _saveTierData();
             },
@@ -700,9 +699,10 @@ class TierListPageState extends State<TierListPage>
     );
   }
 
-  void _showInsertTierDialog(String afterTier) {
-    String name = '';
+  void _showInsertTierDialog(TierMeta afterTier) {
+    String label = '';
     Color pick = Colors.grey;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -713,9 +713,9 @@ class TierListPageState extends State<TierListPage>
             children: [
               TextField(
                 autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(labelText: 'Tier name'),
-                onChanged: (v) => name = v,
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: (v) => label = v,
               ),
               const SizedBox(height: 16),
               const Text('Select color'),
@@ -723,8 +723,8 @@ class TierListPageState extends State<TierListPage>
                 pickerColor: pick,
                 onColorChanged: (c) => pick = c,
                 availableColors: const [
-                  Colors.white, // ← explicitly add white
-                  ...Colors.primaries, // ← all Material primaries
+                  Colors.white,
+                  ...Colors.primaries,
                   Colors.black,
                   Colors.grey,
                 ],
@@ -734,17 +734,27 @@ class TierListPageState extends State<TierListPage>
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
-              if (name.trim().isEmpty) return;
-              final i = tiers.indexOf(afterTier);
+              if (label.trim().isEmpty) return;
+
               setState(() {
-                tiers.insert(i + 1, name);
-                tierColors[name] = pick;
+                final pos = tiers.indexWhere((t) => t.id == afterTier.id);
+                tiers.insert(
+                  pos + 1,
+                  TierMeta(
+                    id: 0, // placeholder – _saveTierData() will
+                    label: label, // renumber IDs top‑to‑bottom
+                    color: pick,
+                  ),
+                );
               });
+
               Navigator.pop(ctx);
-              _saveTierData();
+              _saveTierData(); // recalculates ids and persists
             },
             child: const Text('Insert'),
           ),
@@ -753,63 +763,76 @@ class TierListPageState extends State<TierListPage>
     );
   }
 
-  void _moveTier(String tier, {required bool up}) {
-    final i = tiers.indexOf(tier);
+  void _moveTier(TierMeta tier, {required bool up}) {
+    final i = tiers.indexWhere((t) => t.id == tier.id);
     final j = up ? i - 1 : i + 1;
     if (i < 0 || j < 0 || j >= tiers.length) return;
+
     setState(() {
-      tiers.removeAt(i);
-      tiers.insert(j, tier);
+      final moved = tiers.removeAt(i);
+      tiers.insert(j, moved);
     });
-    _saveTierData();
+
+    _saveTierData(); // renumbers ids (top = 1 …) and persists
   }
 
-  void _removeTier(String tier) {
+  void _removeTier(TierMeta tier) {
     setState(() {
-      tiers.remove(tier);
-      tierColors.remove(tier);
-      // un‐assign any items in that tier:
-      for (var it in items.where((it) => it.tier == tier)) {
-        it.tier = null;
+      tiers.removeWhere((t) => t.id == tier.id);
+
+      // Un‑assign every item that belonged to that tier
+      for (final it in items.where((it) => it.tierId == tier.id)) {
+        it.tierId = null;
+        it.tier = null; // keep legacy label in sync
       }
     });
-    _saveTierData();
+
+    _saveTierData(); // persists new tier list & ids
   }
 
   Future<void> _saveTierData() async {
+    /* ---- build map: old‑id → new‑id ----------------------------------- */
+    final Map<int, int> idMap = {};
+    for (var i = 0; i < tiers.length; i++) {
+      final oldId = tiers[i].id;
+      final newId = i + 1;
+      idMap[oldId] = newId;
+      tiers[i] = TierMeta(
+        // keep label & colour
+        id: newId,
+        label: tiers[i].label,
+        color: tiers[i].color,
+      );
+    }
+
+    /* ---- bump every item's tierId + tier label ------------------------ */
+    for (final it in items) {
+      if (it.tierId != null && idMap.containsKey(it.tierId)) {
+        it.tierId = idMap[it.tierId]!;
+        it.tier = tiers.firstWhere((t) => t.id == it.tierId).label; // text, too
+      }
+    }
+
+    /* ---- persist ranks (same as before) ------------------------------- */
+    final newRanks = tiers.map((t) => t.toJson()).toList();
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('tierLists');
     final List<dynamic> all =
         raw != null ? json.decode(raw) as List<dynamic> : <dynamic>[];
 
-    // build fresh ranks list
-    final newRanks = tiers.map((label) {
-      final c = tierColors[label]!;
-      final hex = c.value.toRadixString(16).padLeft(8, '0').substring(2);
-      return {
-        'label': label,
-        'color': '#${hex.toUpperCase()}',
-      };
-    }).toList();
-
-    // find existing entry
     final idx = all.indexWhere((e) => e['index'] == widget.index);
     if (idx != -1) {
-      // clone & update only ranks
       final entry = Map<String, dynamic>.from(all[idx]);
       entry['ranks'] = newRanks;
       all[idx] = entry;
     } else {
-      // no entry yet— add minimal one
-      all.add({
-        'index': widget.index,
-        'ranks': newRanks,
-      });
+      all.add({'index': widget.index, 'ranks': newRanks});
     }
     await prefs.setString('tierLists', json.encode(all));
-    widget.onForceRebuild(); // tell main page to refresh its list
-    if (mounted) setState(() {}); // refresh UI if needed
-    _saveAndNotifyItemUpdate();
+
+    widget.onForceRebuild();
+    if (mounted) setState(() {});
+    _saveAndNotifyItemUpdate(); // items now carry fresh ids & labels
   }
 
   Future<void> deleteAllContent() async {

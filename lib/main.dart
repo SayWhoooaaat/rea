@@ -168,13 +168,13 @@ class _MyHomePageState extends State<MyHomePage> {
           'password': newTierListName,
           'coverPhoto': null,
           'ranks': [
-            {'label': 'S', 'color': '#F44336'}, // Colors.red
-            {'label': 'Q', 'color': '#9E9E9E'}, // Colors.orange 'A','#FF9800'
-            {'label': 'B', 'color': '#FFC107'}, // Colors.amber
-            {'label': 'C', 'color': '#4CAF50'}, // Colors.green
-            {'label': 'D', 'color': '#2196F3'}, // Colors.blue
-            {'label': 'E', 'color': '#3F51B5'}, // Colors.indigo
-            {'label': 'F', 'color': '#9C27B0'}, // Colors.purple
+            {'id': 1, 'label': 'S', 'color': '#F44336'},
+            {'id': 2, 'label': 'A', 'color': '#FF9800'},
+            {'id': 3, 'label': 'B', 'color': '#FFC107'},
+            {'id': 4, 'label': 'C', 'color': '#4CAF50'},
+            {'id': 5, 'label': 'D', 'color': '#2196F3'},
+            {'id': 6, 'label': 'E', 'color': '#3F51B5'},
+            {'id': 7, 'label': 'F', 'color': '#9C27B0'},
           ],
         };
         _tierLists.add(newTierList);
