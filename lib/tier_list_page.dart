@@ -7,6 +7,7 @@ import 'web_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:flutter/services.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -335,7 +336,10 @@ class TierListPageState extends State<TierListPage>
       child: Row(
         children: [
           GestureDetector(
-            onLongPress: () => _showTierOptionsDialog(tier),
+            onLongPress: () {
+              HapticFeedback.mediumImpact();
+              _showTierOptionsDialog(tier);
+            },
             child: Container(
               width: itemSize,
               height: itemSize,
@@ -571,6 +575,7 @@ class TierListPageState extends State<TierListPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.edit),
               title: const Text('Rename tier'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -578,6 +583,7 @@ class TierListPageState extends State<TierListPage>
               },
             ),
             ListTile(
+              leading: const Icon(Icons.color_lens),
               title: const Text('Change color'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -585,6 +591,7 @@ class TierListPageState extends State<TierListPage>
               },
             ),
             ListTile(
+              leading: const Icon(Icons.add),
               title: const Text('Insert new tier'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -592,6 +599,7 @@ class TierListPageState extends State<TierListPage>
               },
             ),
             ListTile(
+              leading: const Icon(Icons.arrow_upward),
               title: const Text('Move up'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -599,6 +607,7 @@ class TierListPageState extends State<TierListPage>
               },
             ),
             ListTile(
+              leading: const Icon(Icons.arrow_downward),
               title: const Text('Move down'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -606,6 +615,7 @@ class TierListPageState extends State<TierListPage>
               },
             ),
             ListTile(
+              leading: const Icon(Icons.delete),
               title: const Text('Remove tier'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -626,6 +636,7 @@ class TierListPageState extends State<TierListPage>
         title: const Text('Rename tier'),
         content: TextField(
           autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
           decoration: const InputDecoration(labelText: 'New name'),
           onChanged: (value) => newTierName = value,
         ),
@@ -701,6 +712,8 @@ class TierListPageState extends State<TierListPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
+                autofocus: true,
+                textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(labelText: 'Tier name'),
                 onChanged: (v) => name = v,
               ),
@@ -709,6 +722,12 @@ class TierListPageState extends State<TierListPage>
               BlockPicker(
                 pickerColor: pick,
                 onColorChanged: (c) => pick = c,
+                availableColors: const [
+                  Colors.white, // ← explicitly add white
+                  ...Colors.primaries, // ← all Material primaries
+                  Colors.black,
+                  Colors.grey,
+                ],
               ),
             ],
           ),
