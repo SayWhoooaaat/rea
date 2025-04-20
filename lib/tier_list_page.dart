@@ -6,6 +6,7 @@ import 'models/rank_item.dart';
 import 'web_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -569,6 +570,27 @@ class TierListPageState extends State<TierListPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              title: const Text('Rename tier'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showRenameTierDialog(tier);
+              },
+            ),
+            ListTile(
+              title: const Text('Change color'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showChangeTierColorDialog(tier);
+              },
+            ),
+            ListTile(
+              title: const Text('Insert new tier'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showInsertTierDialog(tier);
+              },
+            ),
+            ListTile(
               title: const Text('Move up'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -591,6 +613,115 @@ class TierListPageState extends State<TierListPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showRenameTierDialog(String oldTier) {
+    String newTierName = oldTier;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rename tier'),
+        content: TextField(
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'New name'),
+          onChanged: (value) => newTierName = value,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              if (newTierName.trim().isEmpty) return;
+              final i = tiers.indexOf(oldTier);
+              setState(() {
+                tiers[i] = newTierName;
+                final c = tierColors.remove(oldTier);
+                if (c != null) tierColors[newTierName] = c;
+                for (var it in items.where((it) => it.tier == oldTier)) {
+                  it.tier = newTierName;
+                }
+              });
+              Navigator.pop(ctx);
+              _saveTierData();
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChangeTierColorDialog(String tier) {
+    Color selected = tierColors[tier] ?? Colors.grey;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Select tier color'),
+        content: SingleChildScrollView(
+          child: BlockPicker(
+            pickerColor: selected,
+            onColorChanged: (c) => selected = c,
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              setState(() => tierColors[tier] = selected);
+              Navigator.pop(ctx);
+              _saveTierData();
+            },
+            child: const Text('Select'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInsertTierDialog(String afterTier) {
+    String name = '';
+    Color pick = Colors.grey;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Insert new tier'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: const InputDecoration(labelText: 'Tier name'),
+                onChanged: (v) => name = v,
+              ),
+              const SizedBox(height: 16),
+              const Text('Select color'),
+              BlockPicker(
+                pickerColor: pick,
+                onColorChanged: (c) => pick = c,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              if (name.trim().isEmpty) return;
+              final i = tiers.indexOf(afterTier);
+              setState(() {
+                tiers.insert(i + 1, name);
+                tierColors[name] = pick;
+              });
+              Navigator.pop(ctx);
+              _saveTierData();
+            },
+            child: const Text('Insert'),
+          ),
+        ],
       ),
     );
   }
