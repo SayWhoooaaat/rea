@@ -565,6 +565,7 @@ class TierListPageState extends State<TierListPage>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: Text('Edit tier $tier'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -658,11 +659,18 @@ class TierListPageState extends State<TierListPage>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Select tier color'),
+        scrollable: true,
+        title: const Text('Select color'),
         content: SingleChildScrollView(
           child: BlockPicker(
             pickerColor: selected,
             onColorChanged: (c) => selected = c,
+            availableColors: const [
+              Colors.white, // ← explicitly add white
+              ...Colors.primaries, // ← all Material primaries
+              Colors.black,
+              Colors.grey,
+            ],
           ),
         ),
         actions: [
