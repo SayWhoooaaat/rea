@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter/services.dart';
 import 'models/tier_meta.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -337,6 +338,8 @@ class TierListPageState extends State<TierListPage>
   }
 
   Widget _buildTierRow(TierMeta tierMeta) {
+    final bg = tierMeta.color;
+    final fg = bg.computeLuminance() > 0.1 ? Colors.black : Colors.grey;
     return Container(
       height: itemSize,
       margin: const EdgeInsets.symmetric(vertical: 1.0),
@@ -350,15 +353,20 @@ class TierListPageState extends State<TierListPage>
             child: Container(
               width: itemSize,
               height: itemSize,
-              color: tierMeta.color,
+              color: bg,
               alignment: Alignment.center,
-              child: Text(
+              child: AutoSizeText(
                 tierMeta.label,
+                minFontSize: 14,
+                wrapWords: false,
+                overflow: TextOverflow.clip,
+                stepGranularity: 1,
                 style: TextStyle(
-                  fontWeight: FontWeight.bold,
                   fontSize: itemSize * 0.32,
-                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  color: fg,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           ),
