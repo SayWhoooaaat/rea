@@ -54,11 +54,6 @@ class TierListPageState extends State<TierListPage>
   @override
   bool get wantKeepAlive => true;
 
-  // OLD
-  // List<String> tiers = [];
-  // Map<String, Color> tierColors = {};
-
-  // NEW
   List<TierMeta> tiers = [];
 
   List<RankItem> items = [];
@@ -79,6 +74,36 @@ class TierListPageState extends State<TierListPage>
         }
       });
     });
+    _loadCustomSize();
+  }
+
+  Future<void> _loadCustomSize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('tierLists');
+    if (raw != null) {
+      final all = json.decode(raw) as List<dynamic>;
+      final idx = all.indexWhere((e) => e['index'] == widget.index);
+      if (idx != -1 && all[idx]['itemSize'] != null) {
+        // found a saved value
+        setState(() => itemSize = (all[idx]['itemSize'] as num).toDouble());
+        return;
+      }
+    }
+    // if no size detected
+    final availableHeight = MediaQuery.of(context).size.height -
+        MediaQuery.of(context).padding.top -
+        kToolbarHeight;
+    itemSize =
+        (availableHeight / (tiers.length + 1.5)).clamp(70.0, double.infinity);
+
+    final all = raw != null ? json.decode(raw) as List<dynamic> : <dynamic>[];
+    final idx = all.indexWhere((e) => e['index'] == widget.index);
+    if (idx != -1) {
+      final entry = Map<String, dynamic>.from(all[idx]);
+      entry['itemSize'] = itemSize;
+      all[idx] = entry;
+      await prefs.setString('tierLists', json.encode(all));
+    }
   }
 
   @override
@@ -243,17 +268,16 @@ class TierListPageState extends State<TierListPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // Calculate itemSize based on available height
-    final double availableHeight = MediaQuery.of(context).size.height -
-        MediaQuery.of(context).padding.top -
-        kToolbarHeight;
-    itemSize =
-        (availableHeight / (tiers.length + 1.5)).clamp(70.0, double.infinity);
-    print('At Build, mounted: $mounted');
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         title: Text(widget.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.tune),
+            onPressed: _showSizeDialog,
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -558,6 +582,64 @@ class TierListPageState extends State<TierListPage>
         onUpdate: ({bool forceRebuild = false}) =>
             _saveCustomItems(forceRebuild: forceRebuild));
     _addItem(newItem);
+  }
+
+  void _showSizeDialog() {
+    final double prevSize = itemSize;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          title: const Text('Adjust zoom'),
+          //content: Text('${itemSize.toStringAsFixed(0)} px'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.remove),
+              onPressed: () {
+                setStateDialog(() =>
+                    itemSize = (itemSize - 4).clamp(0.0, double.infinity));
+                setState(() {}); // rebuild the page
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                setStateDialog(() => itemSize = itemSize + 4);
+                setState(() {}); // rebuild immediately
+              },
+            ),
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                // revert any in‑dialog changes
+                setState(() => itemSize = prevSize);
+                Navigator.of(ctx).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () async {
+                // itemSize is already updated in state
+                final prefs = await SharedPreferences.getInstance();
+                final raw = prefs.getString('tierLists');
+                final all = raw != null
+                    ? json.decode(raw) as List<dynamic>
+                    : <dynamic>[];
+                final idx = all.indexWhere((e) => e['index'] == widget.index);
+                if (idx != -1) {
+                  final entry = Map<String, dynamic>.from(all[idx]);
+                  entry['itemSize'] = itemSize;
+                  all[idx] = entry;
+                  await prefs.setString('tierLists', json.encode(all));
+                }
+                Navigator.of(ctx).pop();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showTierOptionsDialog(TierMeta tierMeta) {
