@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
 import 'package:rea/web_picker.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:math' as math;
 
 class RankItem extends ChangeNotifier {
   final GlobalKey key = GlobalKey();
@@ -512,16 +513,15 @@ class RankItem extends ChangeNotifier {
     // Calculate the maximum width and height based on screen size
     final screenSize = MediaQuery.of(context).size;
     final maxWidth = screenSize.width * 0.9; // 90% of screen width
-    final maxHeight = screenSize.height * 0.8; // 80% of screen height
+    final maxWidth2 = math.min(maxWidth, screenSize.height);
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          child: ConstrainedBox(
+      builder: (_) {
+        return Dialog(child: LayoutBuilder(builder: (ctx, bc) {
+          return ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: maxWidth,
-              maxHeight: maxHeight,
+              maxWidth: maxWidth2,
             ),
             child: Stack(
               children: [
@@ -589,8 +589,8 @@ class RankItem extends ChangeNotifier {
                 ),
               ],
             ),
-          ),
-        );
+          );
+        }));
       },
     );
   }
