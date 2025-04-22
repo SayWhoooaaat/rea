@@ -84,8 +84,13 @@ class TierListPageState extends State<TierListPage>
       final all = json.decode(raw) as List<dynamic>;
       final idx = all.indexWhere((e) => e['index'] == widget.index);
       if (idx != -1 && all[idx]['itemSize'] != null) {
-        // found a saved value
-        setState(() => itemSize = (all[idx]['itemSize'] as num).toDouble());
+        final rawSize = (all[idx]['itemSize'] as num).toDouble();
+        final rounded = (rawSize / 4).round() * 4.0;
+        setState(() => itemSize = rounded);
+        // write the rounded value back so you don’t repeat this
+        all[idx]['itemSize'] = rounded;
+        await prefs.setString('tierLists', json.encode(all));
+
         return;
       }
     }
@@ -93,8 +98,9 @@ class TierListPageState extends State<TierListPage>
     final availableHeight = MediaQuery.of(context).size.height -
         MediaQuery.of(context).padding.top -
         kToolbarHeight;
-    itemSize =
+    final baseSize =
         (availableHeight / (tiers.length + 1.5)).clamp(70.0, double.infinity);
+    itemSize = (baseSize / 4).round() * 4;
 
     final all = raw != null ? json.decode(raw) as List<dynamic> : <dynamic>[];
     final idx = all.indexWhere((e) => e['index'] == widget.index);
