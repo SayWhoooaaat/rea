@@ -584,62 +584,79 @@ class TierListPageState extends State<TierListPage>
     _addItem(newItem);
   }
 
-  void _showSizeDialog() {
+  Future<void> _showSizeDialog() async {
     final double prevSize = itemSize;
 
-    showDialog(
+    // showDialog<bool> returns true if “OK” was tapped,
+    // false if “Cancel” was tapped, and null if dismissed by back/outside.
+    final bool? shouldSave = await showDialog<bool>(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setStateDialog) => AlertDialog(
-          title: const Text('Adjust zoom'),
-          //content: Text('${itemSize.toStringAsFixed(0)} px'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.remove),
-              onPressed: () {
-                setStateDialog(() =>
-                    itemSize = (itemSize - 4).clamp(0.0, double.infinity));
-                setState(() {}); // rebuild the page
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                setStateDialog(() => itemSize = itemSize + 4);
-                setState(() {}); // rebuild immediately
-              },
-            ),
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                // revert any in‑dialog changes
-                setState(() => itemSize = prevSize);
-                Navigator.of(ctx).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Save'),
-              onPressed: () async {
-                // itemSize is already updated in state
-                final prefs = await SharedPreferences.getInstance();
-                final raw = prefs.getString('tierLists');
-                final all = raw != null
-                    ? json.decode(raw) as List<dynamic>
-                    : <dynamic>[];
-                final idx = all.indexWhere((e) => e['index'] == widget.index);
-                if (idx != -1) {
-                  final entry = Map<String, dynamic>.from(all[idx]);
-                  entry['itemSize'] = itemSize;
-                  all[idx] = entry;
-                  await prefs.setString('tierLists', json.encode(all));
-                }
-                Navigator.of(ctx).pop();
-              },
-            ),
-          ],
+          title: const Center(child: Text('Adjust zoom')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    iconSize: 48,
+                    icon: const Icon(Icons.remove),
+                    onPressed: () {
+                      setStateDialog(() => itemSize =
+                          (itemSize - 4).clamp(0.0, double.infinity));
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  IconButton(
+                    iconSize: 48,
+                    icon: const Icon(Icons.add),
+                    onPressed: () {
+                      setStateDialog(() => itemSize = itemSize + 4);
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                  ),
+                  ElevatedButton(
+                    child: const Text('OK'),
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+
+    if (shouldSave == false) {
+      // user hit “Cancel”
+      setState(() => itemSize = prevSize);
+    } else {
+      // OK, back‑button, or outside‐tap: persist new size
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('tierLists');
+      final all = raw != null ? json.decode(raw) as List<dynamic> : <dynamic>[];
+      final idx = all.indexWhere((e) => e['index'] == widget.index);
+      if (idx != -1) {
+        final entry = Map<String, dynamic>.from(all[idx]);
+        entry['itemSize'] = itemSize;
+        all[idx] = entry;
+        await prefs.setString('tierLists', json.encode(all));
+      }
+    }
   }
 
   void _showTierOptionsDialog(TierMeta tierMeta) {
