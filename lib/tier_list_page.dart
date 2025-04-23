@@ -5,11 +5,14 @@ import 'dart:convert';
 import 'models/rank_item.dart';
 import 'web_picker.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:typed_data';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter/services.dart';
 import 'models/tier_meta.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:screenshot/screenshot.dart';
+import 'dart:math' as math;
+import 'dart:io';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -53,6 +56,9 @@ class TierListPageState extends State<TierListPage>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+
+  final GlobalKey _repaintKey = GlobalKey();
+  final ScreenshotController _shot = ScreenshotController();
 
   List<TierMeta> tiers = [];
 
@@ -279,29 +285,46 @@ class TierListPageState extends State<TierListPage>
         centerTitle: true,
         title: Text(widget.name),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.tune),
-            onPressed: _showSizeDialog,
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'zoom') {
+                _showSizeDialog();
+              } else if (value == 'export') {
+                _exportImage();
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'zoom',
+                child: Text('Adjust zoom'),
+              ),
+              const PopupMenuItem(
+                value: 'export',
+                child: Text('Export image'),
+              ),
+            ],
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Stack(
+          : Column(
               children: [
-                Column(
-                  children: [
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: tiers.length,
-                        itemBuilder: (context, index) {
-                          return _buildTierRow(tiers[index]);
-                        },
+                Expanded(
+                  // make it scrollable so on‐screen you can still scroll…
+                  child: SingleChildScrollView(
+                    child: RepaintBoundary(
+                      key: _repaintKey, // <<— your GlobalKey
+                      child: Column(
+                        children: tiers
+                            .map((tier) => _buildTierRow(tier))
+                            .toList(), // <<— every tier‐row
                       ),
                     ),
-                    _buildUnrankedItemsRow(),
-                  ],
+                  ),
                 ),
+                _buildUnrankedItemsRow(),
               ],
             ),
       floatingActionButton: SpeedDial(
@@ -588,6 +611,97 @@ class TierListPageState extends State<TierListPage>
         onUpdate: ({bool forceRebuild = false}) =>
             _saveCustomItems(forceRebuild: forceRebuild));
     _addItem(newItem);
+  }
+
+  Future<void> _exportImage() async {
+    await Future.wait(
+      // Pre-caching
+      items
+          .where((it) => it.imagePath != null && it.imagePath!.isNotEmpty)
+          .map((it) => precacheImage(FileImage(File(it.imagePath!)), context)),
+    );
+    /* ---------- how wide & how high --------------------------------------- */
+    final int maxPerRow = tiers
+        .map((t) => items.where((it) => it.tierId == t.id).length)
+        .fold<int>(0, math.max);
+
+    final double rowWidth = itemSize * (1 + maxPerRow); // label + items
+    final double rowHeight = itemSize + 2; // 2-px vertical margin
+    final double sheetHeight = rowHeight * tiers.length;
+
+    /* ---------- off-screen render ----------------------------------------- */
+    final Uint8List? pngBytes = await _shot.captureFromWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final t in tiers) _buildTierRowExport(t),
+            ],
+          ),
+        ),
+      ),
+      targetSize: Size(rowWidth, sheetHeight),
+      pixelRatio: 2.0,
+      delay: const Duration(milliseconds: 200), // cache safety
+    );
+    if (pngBytes == null) return;
+
+    /* ---------- save to gallery ------------------------------------------- */
+    final result = await ImageGallerySaver.saveImage(
+      pngBytes,
+      quality: 100,
+      name: 'tier_export_${DateTime.now().millisecondsSinceEpoch}',
+    );
+
+    final msg = result['isSuccess'] == true
+        ? 'Saved to gallery!'
+        : 'Save failed: ${result['errorMessage']}';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Widget _buildTierRowExport(TierMeta tierMeta) {
+    final bg = tierMeta.color;
+    final fg = bg.computeLuminance() > 0.1 ? Colors.black : Colors.grey;
+
+    // label box is identical
+    final labelBox = Container(
+      width: itemSize,
+      height: itemSize,
+      color: bg,
+      alignment: Alignment.center,
+      child: AutoSizeText(
+        tierMeta.label,
+        minFontSize: 14,
+        wrapWords: false,
+        overflow: TextOverflow.clip,
+        stepGranularity: 1,
+        style: TextStyle(
+          fontSize: itemSize * 0.32,
+          fontWeight: FontWeight.bold,
+          color: fg,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+    // every ranked item in a simple Row
+    final row = Row(
+      children: [
+        for (final it in items.where((it) => it.tierId == tierMeta.id))
+          SizedBox(
+              width: itemSize,
+              height: itemSize,
+              child: it.buildWidget(itemSize)),
+      ],
+    );
+
+    return Container(
+      height: itemSize,
+      margin: const EdgeInsets.symmetric(vertical: 1.0),
+      child: Row(children: [labelBox, row]),
+    );
   }
 
   Future<void> _showSizeDialog() async {
