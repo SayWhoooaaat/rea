@@ -638,7 +638,7 @@ class TierListPageState extends State<TierListPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final t in tiers) _buildTierRowExport(t),
+              for (final t in tiers) _buildTierRowExport(context, t),
             ],
           ),
         ),
@@ -662,45 +662,40 @@ class TierListPageState extends State<TierListPage>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Widget _buildTierRowExport(TierMeta tierMeta) {
-    final bg = tierMeta.color;
+  Widget _buildTierRowExport(BuildContext ctx, TierMeta tier) {
+    Color rowBg = Theme.of(context).colorScheme.surfaceBright;
+    final bg = tier.color;
     final fg = bg.computeLuminance() > 0.1 ? Colors.black : Colors.grey;
-
-    // label box is identical
-    final labelBox = Container(
-      width: itemSize,
-      height: itemSize,
-      color: bg,
-      alignment: Alignment.center,
-      child: AutoSizeText(
-        tierMeta.label,
-        minFontSize: 14,
-        wrapWords: false,
-        overflow: TextOverflow.clip,
-        stepGranularity: 1,
-        style: TextStyle(
-          fontSize: itemSize * 0.32,
-          fontWeight: FontWeight.bold,
-          color: fg,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-    // every ranked item in a simple Row
-    final row = Row(
-      children: [
-        for (final it in items.where((it) => it.tierId == tierMeta.id))
-          SizedBox(
-              width: itemSize,
-              height: itemSize,
-              child: it.buildWidget(itemSize)),
-      ],
-    );
 
     return Container(
       height: itemSize,
-      margin: const EdgeInsets.symmetric(vertical: 1.0),
-      child: Row(children: [labelBox, row]),
+      margin: const EdgeInsets.symmetric(vertical: 1),
+      color: rowBg, // ← identical to in-app look
+      child: Row(
+        children: [
+          Container(
+            width: itemSize,
+            height: itemSize,
+            color: bg,
+            alignment: Alignment.center,
+            child: AutoSizeText(
+              tier.label,
+              minFontSize: 14,
+              stepGranularity: 1,
+              style: TextStyle(
+                fontSize: itemSize * .32,
+                fontWeight: FontWeight.bold,
+                color: fg,
+              ),
+            ),
+          ),
+          for (final it in items.where((it) => it.tierId == tier.id))
+            SizedBox(
+                width: itemSize,
+                height: itemSize,
+                child: it.buildWidget(itemSize)),
+        ],
+      ),
     );
   }
 
