@@ -174,7 +174,7 @@ class _MyHomePageState extends State<MyHomePage> {
             {'id': 4, 'label': 'C', 'color': '#4CAF50'},
             {'id': 5, 'label': 'D', 'color': '#2196F3'},
             {'id': 6, 'label': 'E', 'color': '#3F51B5'},
-            {'id': 7, 'label': 'F', 'color': '#9C27B0'},
+            {'id': 7, 'label': 'F', 'color': '#673AB7'},
           ],
         };
         _tierLists.add(newTierList);

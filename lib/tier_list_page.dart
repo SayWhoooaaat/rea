@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -171,7 +172,7 @@ class TierListPageState extends State<TierListPage>
         TierMeta(id: 4, label: 'C', color: Colors.green),
         TierMeta(id: 5, label: 'D', color: Colors.blue),
         TierMeta(id: 6, label: 'E', color: Colors.indigo),
-        TierMeta(id: 7, label: 'F', color: Colors.purple),
+        TierMeta(id: 7, label: 'F', color: Colors.deepPurple),
       ];
     });
   }
@@ -392,7 +393,7 @@ class TierListPageState extends State<TierListPage>
 
   Widget _buildTierRow(TierMeta tierMeta) {
     final bg = tierMeta.color;
-    final fg = bg.computeLuminance() > 0.1 ? Colors.black : Colors.grey;
+    final fg = bg.computeLuminance() > 0.05 ? Colors.black : Colors.grey;
     return Container(
       height: itemSize,
       margin: const EdgeInsets.symmetric(vertical: 1.0),
@@ -625,9 +626,12 @@ class TierListPageState extends State<TierListPage>
         .map((t) => items.where((it) => it.tierId == t.id).length)
         .fold<int>(0, math.max);
 
-    final double rowWidth = itemSize * (1 + maxPerRow); // label + items
-    final double rowHeight = itemSize + 2; // 2-px vertical margin
-    final double sheetHeight = rowHeight * tiers.length;
+    final double outWidth = itemSize * (1 + maxPerRow);
+    final double outHeight = (itemSize + 2) * tiers.length;
+
+    const double maxPixels = 4000000; // 8 MP
+    double pixRat = math.sqrt(maxPixels / (outWidth * outHeight));
+    pixRat = clampDouble(pixRat, 0.1, 2.0);
 
     /* ---------- off-screen render ----------------------------------------- */
     final Uint8List? pngBytes = await _shot.captureFromWidget(
@@ -643,8 +647,8 @@ class TierListPageState extends State<TierListPage>
           ),
         ),
       ),
-      targetSize: Size(rowWidth, sheetHeight),
-      pixelRatio: 2.0,
+      targetSize: Size(outWidth, outHeight),
+      pixelRatio: pixRat,
       delay: const Duration(milliseconds: 200), // cache safety
     );
     if (pngBytes == null) return;
@@ -665,7 +669,7 @@ class TierListPageState extends State<TierListPage>
   Widget _buildTierRowExport(BuildContext ctx, TierMeta tier) {
     Color rowBg = Theme.of(context).colorScheme.surfaceBright;
     final bg = tier.color;
-    final fg = bg.computeLuminance() > 0.1 ? Colors.black : Colors.grey;
+    final fg = bg.computeLuminance() > 0.05 ? Colors.black : Colors.grey;
 
     return Container(
       height: itemSize,
