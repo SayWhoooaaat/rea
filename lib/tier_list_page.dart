@@ -14,6 +14,7 @@ import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:screenshot/screenshot.dart';
 import 'dart:math' as math;
 import 'dart:io';
+import 'package:flutter/scheduler.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -615,21 +616,37 @@ class TierListPageState extends State<TierListPage>
   }
 
   Future<void> _exportImage() async {
-    await Future.wait(
-      // Pre-caching
-      items
-          .where((it) => it.imagePath != null && it.imagePath!.isNotEmpty)
-          .map((it) => precacheImage(FileImage(File(it.imagePath!)), context)),
-    );
+    /* 1.  enlarge cache temporarily ------------------------------------- */
+    final cache = PaintingBinding.instance.imageCache;
+    final oldCount = cache.maximumSize;
+    final oldBytes = cache.maximumSizeBytes;
+    print("oldbytes = ${oldBytes / 1000000.0}");
+
+    //cache.maximumSize = 2000; // default 1000
+    cache.maximumSizeBytes = 128 << 20; // default 128 for Google pixel 8a
+    print("oldbytes = ${cache.maximumSizeBytes / 1000000}");
+
+    /* 2.  precache everything (logo + items) ----------------------------- */
+    final precacheFutures = <Future<void>>[
+      precacheImage(const AssetImage('assets/default_icon_2.png'), context),
+      for (final it in items)
+        if (it.imagePath != null && it.imagePath!.isNotEmpty)
+          precacheImage(FileImage(File(it.imagePath!)), context),
+    ];
+    await Future.wait(precacheFutures);
+
+    /* 3.  wait one visual frame so all textures are uploaded ------------- */
+    await SchedulerBinding.instance.endOfFrame;
+
     /* ---------- how wide & how high --------------------------------------- */
     final int maxPerRow = tiers
         .map((t) => items.where((it) => it.tierId == t.id).length)
         .fold<int>(0, math.max);
 
     final double outWidth = itemSize * (1 + maxPerRow);
-    final double outHeight = (itemSize + 2) * tiers.length;
+    final double outHeight = (itemSize + 2) * tiers.length + itemSize;
 
-    const double maxPixels = 4000000; // 8 MP
+    const double maxPixels = 8000000; // 8 MP
     double pixRat = math.sqrt(maxPixels / (outWidth * outHeight));
     pixRat = clampDouble(pixRat, 0.1, 2.0);
 
@@ -642,6 +659,7 @@ class TierListPageState extends State<TierListPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildHeader(context),
               for (final t in tiers) _buildTierRowExport(context, t),
             ],
           ),
@@ -651,19 +669,45 @@ class TierListPageState extends State<TierListPage>
       pixelRatio: pixRat,
       delay: const Duration(milliseconds: 200), // cache safety
     );
+    /* 6.  restore cache limits ------------------------------------------ */
+    cache
+      ..maximumSize = oldCount
+      ..maximumSizeBytes = oldBytes;
     if (pngBytes == null) return;
 
     /* ---------- save to gallery ------------------------------------------- */
     final result = await ImageGallerySaver.saveImage(
       pngBytes,
       quality: 100,
-      name: 'tier_export_${DateTime.now().millisecondsSinceEpoch}',
+      name: 'tier_${widget.name}_${DateTime.now().millisecondsSinceEpoch}',
     );
 
     final msg = result['isSuccess'] == true
         ? 'Saved to gallery!'
         : 'Save failed: ${result['errorMessage']}';
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Widget _buildHeader(BuildContext ctx) {
+    return Container(
+      height: itemSize, // same row height looks tidy
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      color: Theme.of(ctx).colorScheme.surfaceBright,
+      child: Row(
+        children: [
+          Image.asset('assets/default_icon_2.png', // <- your promo
+              height: itemSize * .8,
+              fit: BoxFit.contain),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(widget.name, // same text as AppBar
+                maxLines: 1,
+                style: const TextStyle(color: Colors.white),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTierRowExport(BuildContext ctx, TierMeta tier) {
