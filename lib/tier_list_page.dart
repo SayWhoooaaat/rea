@@ -617,21 +617,24 @@ class TierListPageState extends State<TierListPage>
 
   Future<void> _exportImage() async {
     /* 1.  enlarge cache temporarily ------------------------------------- */
-    final cache = PaintingBinding.instance.imageCache;
+    /*final cache = PaintingBinding.instance.imageCache;
     final oldCount = cache.maximumSize;
     final oldBytes = cache.maximumSizeBytes;
     print("oldbytes = ${oldBytes / 1000000.0}");
 
     //cache.maximumSize = 2000; // default 1000
-    cache.maximumSizeBytes = 128 << 20; // default 128 for Google pixel 8a
-    print("oldbytes = ${cache.maximumSizeBytes / 1000000}");
+    cache.maximumSizeBytes = 16 << 20; // default 128 for Google pixel 8a
+    print("oldbytes = ${cache.maximumSizeBytes / 1000000}");*/
 
     /* 2.  precache everything (logo + items) ----------------------------- */
     final precacheFutures = <Future<void>>[
       precacheImage(const AssetImage('assets/default_icon_2.png'), context),
       for (final it in items)
         if (it.imagePath != null && it.imagePath!.isNotEmpty)
-          precacheImage(FileImage(File(it.imagePath!)), context),
+          precacheImage(
+              ResizeImage(FileImage(File(it.imagePath!)),
+                  width: itemSize.toInt(), height: itemSize.toInt()),
+              context),
     ];
     await Future.wait(precacheFutures);
 
@@ -670,9 +673,11 @@ class TierListPageState extends State<TierListPage>
       delay: const Duration(milliseconds: 200), // cache safety
     );
     /* 6.  restore cache limits ------------------------------------------ */
+    /*
     cache
       ..maximumSize = oldCount
-      ..maximumSizeBytes = oldBytes;
+      ..maximumSizeBytes = oldBytes;*/
+
     if (pngBytes == null) return;
 
     /* ---------- save to gallery ------------------------------------------- */

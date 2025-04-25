@@ -104,7 +104,11 @@ class RankItem extends ChangeNotifier {
             borderRadius: BorderRadius.circular(4),
             image: imagePath != null
                 ? DecorationImage(
-                    image: FileImage(File(imagePath)),
+                    image: ResizeImage(
+                      FileImage(File(imagePath)),
+                      width: size.toInt(),
+                      height: size.toInt(),
+                    ),
                     fit: BoxFit.cover,
                   )
                 : null,
