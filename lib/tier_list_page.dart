@@ -627,13 +627,16 @@ class TierListPageState extends State<TierListPage>
     print("oldbytes = ${cache.maximumSizeBytes / 1000000}");*/
 
     /* 2.  precache everything (logo + items) ----------------------------- */
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final targetPx = (itemSize * dpr).round();
+    print('Size: ${targetPx.toInt()}');
     final precacheFutures = <Future<void>>[
       precacheImage(const AssetImage('assets/default_icon_2.png'), context),
       for (final it in items)
         if (it.imagePath != null && it.imagePath!.isNotEmpty)
           precacheImage(
               ResizeImage(FileImage(File(it.imagePath!)),
-                  width: itemSize.toInt(), height: itemSize.toInt()),
+                  width: targetPx.toInt(), height: targetPx.toInt()),
               context),
     ];
     await Future.wait(precacheFutures);
@@ -654,24 +657,30 @@ class TierListPageState extends State<TierListPage>
     pixRat = clampDouble(pixRat, 0.1, 2.0);
 
     /* ---------- off-screen render ----------------------------------------- */
+    final view = WidgetsBinding.instance.platformDispatcher.views.first;
+    final media = MediaQueryData.fromView(view);
     final Uint8List? pngBytes = await _shot.captureFromWidget(
       Directionality(
         textDirection: TextDirection.ltr,
-        child: Material(
-          type: MaterialType.transparency,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              for (final t in tiers) _buildTierRowExport(context, t),
-            ],
+        child: MediaQuery(
+          data: media,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context),
+                for (final t in tiers) _buildTierRowExport(context, t),
+              ],
+            ),
           ),
         ),
       ),
       targetSize: Size(outWidth, outHeight),
       pixelRatio: pixRat,
-      delay: const Duration(milliseconds: 200), // cache safety
+      delay: const Duration(milliseconds: 200),
     );
+
     /* 6.  restore cache limits ------------------------------------------ */
     /*
     cache

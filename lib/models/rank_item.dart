@@ -93,6 +93,8 @@ class RankItem extends ChangeNotifier {
     return ValueListenableBuilder<String?>(
       valueListenable: imagePathNotifier,
       builder: (context, imagePath, child) {
+        final dpr = MediaQuery.of(context).devicePixelRatio;
+        final targetPx = (size * dpr).round();
         print('Building widget with imagePath: $imagePath');
         return Container(
           key: ValueKey('$id-$imagePath'),
@@ -106,8 +108,8 @@ class RankItem extends ChangeNotifier {
                 ? DecorationImage(
                     image: ResizeImage(
                       FileImage(File(imagePath)),
-                      width: size.toInt(),
-                      height: size.toInt(),
+                      width: targetPx.toInt(),
+                      height: targetPx.toInt(),
                     ),
                     fit: BoxFit.cover,
                   )
