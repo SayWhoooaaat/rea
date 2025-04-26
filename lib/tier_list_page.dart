@@ -82,7 +82,9 @@ class TierListPageState extends State<TierListPage>
         }
       });
     });
-    _loadCustomSize();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCustomSize(); // Ensures async operation is called after build.
+    });
   }
 
   Future<void> _loadCustomSize() async {
@@ -98,6 +100,7 @@ class TierListPageState extends State<TierListPage>
         // write the rounded value back so you don’t repeat this
         all[idx]['itemSize'] = rounded;
         await prefs.setString('tierLists', json.encode(all));
+        print("read zoom = ${itemSize.toInt()}");
 
         return;
       }
@@ -616,22 +619,11 @@ class TierListPageState extends State<TierListPage>
   }
 
   Future<void> _exportImage() async {
-    /* 1.  enlarge cache temporarily ------------------------------------- */
-    /*final cache = PaintingBinding.instance.imageCache;
-    final oldCount = cache.maximumSize;
-    final oldBytes = cache.maximumSizeBytes;
-    print("oldbytes = ${oldBytes / 1000000.0}");
-
-    //cache.maximumSize = 2000; // default 1000
-    cache.maximumSizeBytes = 16 << 20; // default 128 for Google pixel 8a
-    print("oldbytes = ${cache.maximumSizeBytes / 1000000}");*/
-
-    /* 2.  precache everything (logo + items) ----------------------------- */
+    /* 2.  precache images ----------------------------- */
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final targetPx = (itemSize * dpr).round();
     print('Size: ${targetPx.toInt()}');
     final precacheFutures = <Future<void>>[
-      precacheImage(const AssetImage('assets/default_icon_2.png'), context),
       for (final it in items)
         if (it.imagePath != null && it.imagePath!.isNotEmpty)
           precacheImage(
@@ -650,7 +642,12 @@ class TierListPageState extends State<TierListPage>
         .fold<int>(0, math.max);
 
     final double outWidth = itemSize * (1 + maxPerRow);
-    final double outHeight = (itemSize + 2) * tiers.length + itemSize;
+    final textStyle = Theme.of(context).appBarTheme.titleTextStyle ??
+        Theme.of(context).textTheme.titleLarge!;
+    final double headerHeight =
+        (textStyle.fontSize! * (textStyle.height ?? 1.2) + 8).ceilToDouble();
+    final double outHeight =
+        headerHeight + (itemSize + 2) * tiers.length; // header + rows
 
     const double maxPixels = 8000000; // 8 MP
     double pixRat = math.sqrt(maxPixels / (outWidth * outHeight));
@@ -680,13 +677,6 @@ class TierListPageState extends State<TierListPage>
       pixelRatio: pixRat,
       delay: const Duration(milliseconds: 200),
     );
-
-    /* 6.  restore cache limits ------------------------------------------ */
-    /*
-    cache
-      ..maximumSize = oldCount
-      ..maximumSizeBytes = oldBytes;*/
-
     if (pngBytes == null) return;
 
     /* ---------- save to gallery ------------------------------------------- */
@@ -703,23 +693,19 @@ class TierListPageState extends State<TierListPage>
   }
 
   Widget _buildHeader(BuildContext ctx) {
+    final textStyle = Theme.of(ctx).appBarTheme.titleTextStyle ??
+        Theme.of(ctx).textTheme.titleLarge!;
+
     return Container(
-      height: itemSize, // same row height looks tidy
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       color: Theme.of(ctx).colorScheme.surfaceBright,
-      child: Row(
-        children: [
-          Image.asset('assets/default_icon_2.png', // <- your promo
-              height: itemSize * .8,
-              fit: BoxFit.contain),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(widget.name, // same text as AppBar
-                maxLines: 1,
-                style: const TextStyle(color: Colors.white),
-                overflow: TextOverflow.ellipsis),
-          ),
-        ],
+      alignment: Alignment.center,
+      child: Text(
+        widget.name,
+        style: textStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -743,12 +729,15 @@ class TierListPageState extends State<TierListPage>
             child: AutoSizeText(
               tier.label,
               minFontSize: 14,
+              wrapWords: false,
+              overflow: TextOverflow.clip,
               stepGranularity: 1,
               style: TextStyle(
-                fontSize: itemSize * .32,
+                fontSize: itemSize * 0.32,
                 fontWeight: FontWeight.bold,
                 color: fg,
               ),
+              textAlign: TextAlign.center,
             ),
           ),
           for (final it in items.where((it) => it.tierId == tier.id))
@@ -832,6 +821,7 @@ class TierListPageState extends State<TierListPage>
         entry['itemSize'] = itemSize;
         all[idx] = entry;
         await prefs.setString('tierLists', json.encode(all));
+        print("stored zoom = ${itemSize.toInt()}");
       }
     }
   }

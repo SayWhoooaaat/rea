@@ -159,6 +159,11 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     if (newTierListName != null && newTierListName.isNotEmpty) {
+      final availableHeight = MediaQuery.of(context).size.height -
+          MediaQuery.of(context).padding.top -
+          kToolbarHeight;
+      final baseSize = (availableHeight / 8.2).clamp(70.0, double.infinity);
+      double itemSize = (baseSize / 4).round() * 4;
       setState(() {
         int newIndex = _tierLists.isEmpty ? 0 : _tierLists.last['index'] + 1;
         Map<String, dynamic> newTierList = {
@@ -167,6 +172,7 @@ class _MyHomePageState extends State<MyHomePage> {
           'hidden': false,
           'password': newTierListName,
           'coverPhoto': null,
+          'itemSize': itemSize,
           'ranks': [
             {'id': 1, 'label': 'S', 'color': '#F44336'},
             {'id': 2, 'label': 'A', 'color': '#FF9800'},

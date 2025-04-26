@@ -95,7 +95,7 @@ class RankItem extends ChangeNotifier {
       builder: (context, imagePath, child) {
         final dpr = MediaQuery.of(context).devicePixelRatio;
         final targetPx = (size * dpr).round();
-        print('Building widget with imagePath: $imagePath');
+        //print('Building widget with imagePath: $imagePath');
         return Container(
           key: ValueKey('$id-$imagePath'),
           width: size,
