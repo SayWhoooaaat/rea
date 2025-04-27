@@ -15,6 +15,9 @@ import 'package:screenshot/screenshot.dart';
 import 'dart:math' as math;
 import 'dart:io';
 import 'package:flutter/scheduler.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 
 class TierListPage extends StatefulWidget {
   final String name;
@@ -679,17 +682,52 @@ class TierListPageState extends State<TierListPage>
     );
     if (pngBytes == null) return;
 
-    /* ---------- save to gallery ------------------------------------------- */
-    final result = await ImageGallerySaver.saveImage(
-      pngBytes,
-      quality: 100,
-      name: 'tier_${widget.name}_${DateTime.now().millisecondsSinceEpoch}',
-    );
+/* ---------- save to gallery ------------------------------------------- */
+    final tempDir = await getTemporaryDirectory();
+    final exportPath =
+        '${tempDir.path}/tier_${widget.name}_${DateTime.now().millisecondsSinceEpoch}.png';
+    await File(exportPath).writeAsBytes(pngBytes);
 
-    final msg = result['isSuccess'] == true
-        ? 'Saved to gallery!'
-        : 'Save failed: ${result['errorMessage']}';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    await ImageGallerySaver.saveFile(exportPath);
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                'Exported: ${widget.name}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            SizedBox(
+              height: 200,
+              child: Image.file(File(exportPath), fit: BoxFit.contain),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.share),
+                  label: const Text('Share'),
+                  onPressed: () => Share.shareXFiles(
+                    [XFile(exportPath)],
+                  ),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Open'),
+                  onPressed: () => OpenFile.open(exportPath),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildHeader(BuildContext ctx) {
@@ -752,9 +790,6 @@ class TierListPageState extends State<TierListPage>
 
   Future<void> _showSizeDialog() async {
     final double prevSize = itemSize;
-
-    // showDialog<bool> returns true if “OK” was tapped,
-    // false if “Cancel” was tapped, and null if dismissed by back/outside.
     final bool? shouldSave = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
