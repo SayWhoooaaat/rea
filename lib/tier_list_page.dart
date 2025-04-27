@@ -822,6 +822,10 @@ class TierListPageState extends State<TierListPage>
         all[idx] = entry;
         await prefs.setString('tierLists', json.encode(all));
         print("stored zoom = ${itemSize.toInt()}");
+
+        widget.onForceRebuild();
+        if (mounted) setState(() {});
+        _saveAndNotifyItemUpdate();
       }
     }
   }
