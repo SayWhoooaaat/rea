@@ -6,7 +6,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.6.0'
+        classpath 'com.android.tools.build:gradle:8.6.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -26,15 +26,15 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.saywhoooaaat.rea"
-    compileSdk = 34  // or the latest version
+    compileSdk = 35  // or the latest version
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = '11'
+        jvmTarget = '17'
     }
 
     defaultConfig {
@@ -43,7 +43,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 21  // Explicitly set minSdk, required for image_cropper
-        targetSdk = 34  // or the latest version
+        targetSdk = 35  // or the latest version
         versionCode = flutter.versionCode.toInteger()
         versionName = flutter.versionName
     }
