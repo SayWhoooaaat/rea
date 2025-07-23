@@ -463,6 +463,7 @@ class TierListPageState extends State<TierListPage>
   }
 
   Widget _buildUnrankedItemsRow() {
+    final unrankedItems = items.where((it) => it.tierId == null).toList();
     return Container(
       height: itemSize,
       margin: const EdgeInsets.symmetric(vertical: 1.0),
@@ -472,11 +473,34 @@ class TierListPageState extends State<TierListPage>
             child: DragTarget<RankItem>(
               builder: (c, _, __) => Container(
                 color: Theme.of(context).colorScheme.surfaceBright,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: items.where((it) => it.tierId == null).length,
-                  itemBuilder: (ctx, i) => _buildDraggableItem(
-                      items.where((it) => it.tierId == null).toList()[i]),
+                child: Stack(
+                  children: [
+                    ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: unrankedItems.length,
+                      itemBuilder: (ctx, i) =>
+                          _buildDraggableItem(unrankedItems[i]),
+                    ),
+                    if (unrankedItems.isNotEmpty)
+                      IgnorePointer(
+                        ignoring: true,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'Long press an item to drag it',
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 14),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               onAcceptWithDetails: (details) {

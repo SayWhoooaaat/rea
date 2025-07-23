@@ -26,7 +26,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.saywhoooaaat.rea"
-    compileSdk = 35  // or the latest version
+    compileSdk = 35 // imagecropper not ready for 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -43,7 +43,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 21  // Explicitly set minSdk, required for image_cropper
-        targetSdk = 35  // or the latest version
+        targetSdk = 35 // imagecropper not ready for 36
         versionCode = flutter.versionCode.toInteger()
         versionName = flutter.versionName
     }
