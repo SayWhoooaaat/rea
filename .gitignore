@@ -10,6 +10,9 @@
 .svn/
 migrate_working_dir/
 
+# keep signing key private
+android/app/upload-keystore.jks
+
 # IntelliJ related
 *.iml
 *.ipr
