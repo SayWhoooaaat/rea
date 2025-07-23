@@ -464,6 +464,7 @@ class TierListPageState extends State<TierListPage>
 
   Widget _buildUnrankedItemsRow() {
     final unrankedItems = items.where((it) => it.tierId == null).toList();
+    final hasRankedItems = items.any((it) => it.tierId != null);
     return Container(
       height: itemSize,
       margin: const EdgeInsets.symmetric(vertical: 1.0),
@@ -481,7 +482,7 @@ class TierListPageState extends State<TierListPage>
                       itemBuilder: (ctx, i) =>
                           _buildDraggableItem(unrankedItems[i]),
                     ),
-                    if (unrankedItems.isNotEmpty)
+                    if (unrankedItems.isNotEmpty && !hasRankedItems)
                       IgnorePointer(
                         ignoring: true,
                         child: Center(
@@ -688,14 +689,17 @@ class TierListPageState extends State<TierListPage>
         textDirection: TextDirection.ltr,
         child: MediaQuery(
           data: media,
-          child: Material(
-            type: MaterialType.transparency,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                for (final t in tiers) _buildTierRowExport(context, t),
-              ],
+          child: Container(
+            color: Colors.black, // solid background for export
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  for (final t in tiers) _buildTierRowExport(context, t),
+                ],
+              ),
             ),
           ),
         ),
