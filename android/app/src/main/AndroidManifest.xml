@@ -19,11 +19,6 @@
             android:theme="@style/Ucrop.CropTheme"
             android:exported="false"/>   <!-- no intent‑filter, so keep it false -->
 
-        <meta-data
-            android:name="android:enforceEdgeToEdge"
-            android:value="false"
-            tools:targetApi="35"/>
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
